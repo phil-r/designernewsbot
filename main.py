@@ -57,6 +57,8 @@ def cron():
   for story in stories_list:
     if story.get('id') in cached_stories:
       continue
+    if story.get('sponsored'):
+      continue
     if story and story.get('vote_count') >= 10:
       StoryPost.add(story)
     elif story:
