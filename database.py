@@ -7,9 +7,9 @@ from google.appengine.ext import ndb
 from google.appengine.api import memcache
 
 from helper import development
-from apis.telegram import send_message
+from apis.telegram import send_message, send_photo
 
-
+# Designer news post
 class StoryPost(ndb.Model):
   title = ndb.StringProperty()
   text = ndb.TextProperty()
@@ -32,7 +32,6 @@ class StoryPost(ndb.Model):
     short_id = shortener.encode(story_id_int)
     dn_url = "https://www.designernews.co/stories/{}".format(story_id)
     story_url = story.get('url')
-    # TODO: handle sponsored?
 
     # Check memcache and databse, maybe this story was already sent
     if memcache.get(story_id):
@@ -110,6 +109,85 @@ class StoryPost(ndb.Model):
     post = cls(id=story_id, title=story.get('title'), url=story.get('url'),
         score=story.get('vote_count'), text=story.get('comment'),
         short_url=short_url, short_dn_url=short_dn_url,
+        message=message, telegram_message_id=telegram_message_id)
+    post.put()
+    post.add_memcache()
+
+
+class BehanceProject(ndb.Model):
+  title = ndb.StringProperty()
+  message = ndb.TextProperty()
+  url = ndb.TextProperty()
+  short_url = ndb.TextProperty(indexed=False)
+  score = ndb.IntegerProperty(indexed=False)
+  telegram_message_id = ndb.IntegerProperty()
+
+  created = ndb.DateTimeProperty(auto_now_add=True)
+
+  def add_memcache(self):
+    memcache.set('b/{}'.format(self.key.id()), self.url)
+
+  @classmethod
+  def add(cls, project):
+    project_id = project.get('id')
+    project_id_int = int(project_id)
+    short_id = shortener.encode(project_id_int)
+    project_url = project.get('url')
+
+    # Check memcache and databse, maybe this project was already sent
+    if memcache.get('b/{}'.format(project_id)):
+      logging.info('STOP: {} in memcache'.format(project_id))
+      return
+    post = ndb.Key(cls, project_id).get()
+    if post:
+      logging.info('STOP: {} in DB'.format(project_id))
+      post.add_memcache()
+      return
+    logging.info('SEND: {}'.format(project_id))
+
+    project['name'] = project.get('name').encode('utf-8')
+    stats = project.get('stats', {})
+    comments_count = stats.get('comments', 0)
+    votes_count = stats.get('appreciations', 0)
+
+    if development():
+      short_url = 'http://localhost:8080/b/{}'.format(short_id)
+    else:
+      short_url = 'https://dsgnr.news/b/{}'.format(short_id)
+
+    buttons = [{
+      'text': 'Open project',
+      'url': project_url
+    }]
+
+    # Get the difference between published date and when target score was reached
+    now = datetime.datetime.now()
+    published = datetime.datetime.fromtimestamp(project.get('published_on'))
+    ago = timeago.format(now, published)
+
+    # Add title
+    message = '<b>{name}</b> (Score: {votes_count}+ {ago})\n\n'.format(ago=ago,
+                                            votes_count=votes_count, **project)
+
+    # Add link
+    message += '<b>Link:</b> {}\n'.format(short_url)
+
+    # Send to the telegram channel
+    if development():
+      result = send_photo('@designer_news_st', project.get('covers').get('original'),
+                          message, {'inline_keyboard': [buttons]})
+
+    else:
+      result = send_photo('@designer_news', project.get('covers').get('original'),
+                          message, {'inline_keyboard': [buttons]})
+
+    logging.info('Telegram response: {}'.format(result))
+
+    telegram_message_id = None
+    if result and result.get('ok'):
+      telegram_message_id = result.get('result').get('message_id')
+    post = cls(id=project_id, title=project.get('name'), url=project_url,
+        score=votes_count, short_url=short_url,
         message=message, telegram_message_id=telegram_message_id)
     post.put()
     post.add_memcache()
