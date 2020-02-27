@@ -9,6 +9,7 @@ def call_method(method):
   result = urlfetch.fetch(BASE_URL.format(method=method), deadline=10)
   if result.status_code == 200:
     return json.loads(result.content)
+  logging.warning('DN error code: {}'.format(result.status_code))
   return None
 
 

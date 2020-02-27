@@ -66,6 +66,8 @@ def comments_redirect(short_id):
 
 def dn_cron():
   stories_response = stories()
+  if not stories_response:
+    return
   stories_list = stories_response.get('stories')
   ids = set(story.get('id') for story in stories_list)
   logging.info('checking stories: {}'.format(ids))
@@ -85,7 +87,8 @@ def dn_cron():
 
 def behance_cron():
   projects_response = projects(time='week', sort='appreciations')
-  # projects_response = projects()
+  if not projects_response:
+    return
   projects_list = projects_response.get('projects')
   ids = set('b/{}'.format(project.get('id')) for project in projects_list)
   logging.info('checking projects: {}'.format(ids))

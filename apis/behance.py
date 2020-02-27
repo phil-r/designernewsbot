@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 
 from urllib import urlencode
 from google.appengine.api import urlfetch
@@ -15,6 +16,7 @@ def call_method(method, query={}):
                           deadline=10)
   if result.status_code == 200:
     return json.loads(result.content)
+  logging.warning('Behance error code: {}'.format(result.status_code))
   return None
 
 
