@@ -73,7 +73,7 @@ class StoryPost(ndb.Model):
 
     # Get the difference between published date and when target score was reached
     now = datetime.datetime.now()
-    published = datetime.datetime.strptime(story.get('created_at'), '%Y-%m-%dT%H:%M:%SZ')
+    published = datetime.datetime.strptime(story.get('created_at'), '%Y-%m-%dT%H:%M:%S.%fZ')
     ago = timeago.format(now, published)
 
     # Add title
