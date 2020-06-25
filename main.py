@@ -8,7 +8,8 @@ from google.appengine.ext import deferred, ndb
 from flask import Flask, redirect, abort, make_response, jsonify
 from apis.dn import stories
 from apis.behance import projects
-from database import StoryPost, BehanceProject
+from apis.dribbble import dribbble_top
+from database import StoryPost, BehanceProject, DribbbleShot
 
 app = Flask(__name__)
 
@@ -18,6 +19,7 @@ def yo():
   # TODO: remove
   # return jsonify(stories())
   # return jsonify(projects())
+  # return jsonify(dribbble_top())
   # behance_cron()
   return 'yo'
 
@@ -64,6 +66,22 @@ def comments_redirect(short_id):
   dn_url = "https://www.designernews.co/stories/{}".format(story_id)
   return redirect(dn_url)
 
+@app.route('/d/<short_id>')
+def dribbble_redirect(short_id):
+  """Redirect to dribbble shot url"""
+  try:
+    shot_id = str(shortener.decode(short_id))
+  except:
+    return abort(400)
+  redirect_url = memcache.get('d/{}'.format(shot_id))
+  if not redirect_url:
+    shot = ndb.Key(DribbbleShot, shot_id).get()
+    if not shot:
+      return make_response('<h1>Service Unavailable</h1><p>Try again later</p>', 503, {'Retry-After': 5})
+    shot.add_memcache()
+    redirect_url = shot.url
+  return redirect(redirect_url)
+
 def dn_cron():
   stories_response = stories()
   if not stories_response:
@@ -105,10 +123,31 @@ def behance_cron():
     else: # TODO: can this happen?
       logging.info('STOP: project was probably deleted/flagged')
 
+def dribbble_cron():
+  shots_response = dribbble_top()
+  if not shots_response:
+    return
+  shots_list = shots_response.get('top')
+  ids = set('d/{}'.format(shot.get('id')) for shot in shots_list)
+  logging.info('checking shots: {}'.format(ids))
+  cached_shots = set(memcache.get_multi(ids).keys())
+  logging.info('cached shots: {}'.format(cached_shots))
+  for shot in shots_list:
+    if 'd/{}'.format(shot.get('id')) in cached_shots:
+      continue
+    if shot and shot.get('likes') >= 300:
+      logging.info('POST: {id}'.format(**shot))
+      DribbbleShot.add(shot)
+    elif shot:
+      logging.info('STOP: {id} has low likes count'.format(**shot))
+    else: # TODO: can this happen?
+      logging.info('STOP: shot was probably deleted/flagged')
+
 @app.route('/cron')
 def cron():
   dn_cron()
   behance_cron()
+  dribbble_cron()
   return 'OK'
 
 @app.errorhandler(404)

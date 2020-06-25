@@ -58,6 +58,21 @@ def send_photo(chat_id, photo, text='', reply_markup=None, parse_mode='HTML',
 
   return call_method('sendPhoto', message, deadline=30)
 
+def send_video(chat_id, video, text='', reply_markup=None, parse_mode='HTML',
+               disable_notification=True):
+  message = {
+    'chat_id': chat_id,
+    'video': video,
+    'caption': text,
+    'parse_mode': parse_mode,
+    'disable_notification': disable_notification
+  }
+
+  if reply_markup:
+    message['reply_markup'] = reply_markup
+
+  return call_method('sendVideo', message, deadline=30)
+
 def send_media_group(chat_id, photos, text='', reply_markup=None,
                      parse_mode='HTML', disable_notification=True):
   media = list({'type': 'photo', 'media': photo, 'caption': text, 'parse_mode': parse_mode} for photo in photos)

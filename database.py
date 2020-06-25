@@ -7,7 +7,7 @@ from google.appengine.ext import ndb
 from google.appengine.api import memcache
 
 from helper import development
-from apis.telegram import send_message, send_photo
+from apis.telegram import send_message, send_photo, send_video
 
 # Designer news post
 class StoryPost(ndb.Model):
@@ -33,7 +33,7 @@ class StoryPost(ndb.Model):
     dn_url = "https://www.designernews.co/stories/{}".format(story_id)
     story_url = story.get('url')
 
-    # Check memcache and databse, maybe this story was already sent
+    # Check memcache and database, maybe this story was already sent
     if memcache.get(story_id):
       logging.info('STOP: {} in memcache'.format(story_id))
       return
@@ -134,7 +134,7 @@ class BehanceProject(ndb.Model):
     short_id = shortener.encode(project_id_int)
     project_url = project.get('url')
 
-    # Check memcache and databse, maybe this project was already sent
+    # Check memcache and database, maybe this project was already sent
     if memcache.get('b/{}'.format(project_id)):
       logging.info('STOP: {} in memcache'.format(project_id))
       return
@@ -187,6 +187,87 @@ class BehanceProject(ndb.Model):
     if result and result.get('ok'):
       telegram_message_id = result.get('result').get('message_id')
     post = cls(id=project_id, title=project.get('name'), url=project_url,
+        score=votes_count, short_url=short_url,
+        message=message, telegram_message_id=telegram_message_id)
+    post.put()
+    post.add_memcache()
+
+
+
+class DribbbleShot(ndb.Model):
+  title = ndb.StringProperty()
+  message = ndb.TextProperty()
+  url = ndb.TextProperty()
+  short_url = ndb.TextProperty(indexed=False)
+  score = ndb.IntegerProperty(indexed=False)
+  telegram_message_id = ndb.IntegerProperty()
+
+  created = ndb.DateTimeProperty(auto_now_add=True)
+
+  def add_memcache(self):
+    memcache.set('d/{}'.format(self.key.id()), self.url)
+
+  @classmethod
+  def add(cls, shot):
+    shot_id = shot.get('id')
+    short_id = shortener.encode(shot_id)
+    shot_url = shot.get('url')
+
+    # Check memcache and database, maybe this shot was already sent
+    if memcache.get('d/{}'.format(shot_id)):
+      logging.info('STOP: {} in memcache'.format(shot_id))
+      return
+    post = ndb.Key(cls, shot_id).get()
+    if post:
+      logging.info('STOP: {} in DB'.format(shot_id))
+      post.add_memcache()
+      return
+    logging.info('SEND: {}'.format(shot_id))
+
+    shot['title'] = shot.get('title').encode('utf-8')
+    # comments_count = shot.get('comments', 0)
+    votes_count = shot.get('likes', 0)
+
+    if development():
+      short_url = 'http://localhost:8080/d/{}'.format(short_id)
+    else:
+      short_url = 'https://dsgnr.news/d/{}'.format(short_id)
+
+    buttons = [{
+      'text': 'Open shot',
+      'url': shot_url
+    }]
+
+    # Add title
+    message = '<b>{title}</b> (Score: {votes_count}+)\n\n'.format(
+                                            votes_count=votes_count, **shot)
+
+    # Add link
+    message += '<b>Link:</b> {}\n'.format(short_url)
+
+    # Send to the telegram channel
+    if development():
+      if shot.get('video'):
+        result = send_video('@designer_news_st', shot.get('video'),
+                          message, {'inline_keyboard': [buttons]})
+      else:
+        result = send_photo('@designer_news_st', shot.get('img'),
+                          message, {'inline_keyboard': [buttons]})
+
+    else:
+      if shot.get('video'):
+        result = send_video('@designer_news', shot.get('video'),
+                          message, {'inline_keyboard': [buttons]})
+      else:
+        result = send_photo('@designer_news', shot.get('img'),
+                          message, {'inline_keyboard': [buttons]})
+
+    logging.info('Telegram response: {}'.format(result))
+
+    telegram_message_id = None
+    if result and result.get('ok'):
+      telegram_message_id = result.get('result').get('message_id')
+    post = cls(id=shot_id, title=shot.get('title'), url=shot_url,
         score=votes_count, short_url=short_url,
         message=message, telegram_message_id=telegram_message_id)
     post.put()
