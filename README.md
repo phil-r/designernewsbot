@@ -12,6 +12,9 @@ It loads [top stories](https://www.designernews.co/api/v2/stories) every 10 minu
 ## Behance API
 Bot uses [Behance API](https://www.behance.net/dev)
 
+## Dribbble API
+Bot uses [Unofficial Dribble API](https://github.com/phil-r/dribbble-top)
+
 ## Telegram API
 Bot uses [Telegram Bot API](https://core.telegram.org/bots/api) to post messages to the [telegram channel](https://telegram.me/designer_news) with [sendMessage](https://core.telegram.org/bots/api#sendmessage) request
 
