@@ -77,7 +77,7 @@ class StoryPost(ndb.Model):
     ago = timeago.format(now, published)
 
     # Add title
-    message = '<b>{title}</b> (Score: {vote_count}+ {ago})\n\n'.format(ago=ago, **story)
+    message = '<b>{title}</b> (Score: {vote_count}+ {ago}) #DN\n\n'.format(ago=ago, **story)
 
     # Add link
     message += '<b>Link:</b> {}\n'.format(short_url)
@@ -166,7 +166,7 @@ class BehanceProject(ndb.Model):
     ago = timeago.format(now, published)
 
     # Add title
-    message = '<b>{name}</b> (Score: {votes_count}+ {ago})\n\n'.format(ago=ago,
+    message = '<b>{name}</b> (Score: {votes_count}+ {ago}) #Behance\n\n'.format(ago=ago,
                                             votes_count=votes_count, **project)
 
     # Add link
@@ -239,7 +239,7 @@ class DribbbleShot(ndb.Model):
     }]
 
     # Add title
-    message = '<b>{title}</b> (Score: {votes_count}+)\n\n'.format(
+    message = '<b>{title}</b> (Score: {votes_count}+) #dribbble\n\n'.format(
                                             votes_count=votes_count, **shot)
 
     # Add link
