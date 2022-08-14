@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model DesignerNewsStory {
+  id                Int      @id @default(autoincrement())
+  title             String
+  text              String?
+  message           String
+  url               String // Should this be @unique? 
+  shortUrl          String   @unique //short_url
+  shortDnUrl        String   @unique //short_dn_url
+  score             Int
+  telegramMessageId Int?     @unique // telegram_message_id
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model BehanceProject {
+  id                Int      @id @default(autoincrement())
+  title             String
+  message           String
+  url               String // Should this be @unique? 
+  shortUrl          String   @unique //short_url
+  score             Int
+  telegramMessageId Int?     @unique // telegram_message_id
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model DribbbleShot {
+  id                Int      @id @default(autoincrement())
+  title             String
+  message           String
+  url               String // Should this be @unique? 
+  shortUrl          String   @unique //short_url
+  score             Int
+  telegramMessageId Int?     @unique // telegram_message_id
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

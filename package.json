@@ -1,0 +1,36 @@
+{
+  "name": "designer-news2",
+  "version": "1.0.0",
+  "main": "main.ts",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/node": "^18.6.5",
+    "install": "^0.13.0",
+    "prisma": "^4.2.1",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@prisma/client": "^4.2.1",
+    "alphanumeric-encoder": "^1.6.0",
+    "axios": "^0.27.2",
+    "dotenv": "^16.0.1",
+    "express": "^4.18.1",
+    "lru-cache": "^7.13.2"
+  },
+  "scripts": {
+    "dev": "tsnd --respawn src/index.ts",
+    "start": "ts-node src/index.ts",
+    "start:js": "node dist/index.js",
+    "build": "tsc",
+    "cron": "ts-node src/cron.ts",
+    "migrate": "prisma migrate",
+    "migrate:dev": "prisma migrate dev",
+    "generate": "prisma generate",
+    "studio": "prisma studio",
+    "prisma": "prisma",
+    "sync": "./hidden/deploy.sh"
+  }
+}

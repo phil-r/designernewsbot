@@ -1,0 +1,12 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+# Keep my todolist hidden
+things.todo
+
+# Don't commit database
+prisma/dev.db
+
+# various things that are helpful, but shouldn't be public ^_^
+hidden
