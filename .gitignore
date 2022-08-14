@@ -10,3 +10,6 @@ prisma/dev.db
 
 # various things that are helpful, but shouldn't be public ^_^
 hidden
+
+# typescript build folder
+dist

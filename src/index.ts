@@ -1,25 +1,23 @@
-
-import 'dotenv/config'
+import 'dotenv/config';
 import express from 'express';
+import { projects } from './apis/behance';
 
-import {  getBehanceProjectUrl } from './services/behance';
-import {  getDNStoryCommentsUrl, getDNStoryUrl } from './services/dn';
-import {  getDribbleShotUrl } from './services/dribbble';
+import { getBehanceProjectUrl } from './services/behance';
+import { getDNStoryCommentsUrl, getDNStoryUrl } from './services/dn';
+import { getDribbleShotUrl } from './services/dribbble';
 import { decode } from './shortener';
 
+const app = express();
 
-const app = express()
-
-app.use(express.json())
+app.use(express.json());
 
 const defaultRouter = express.Router();
+
 defaultRouter.use('/', express.static('static'));
+
 defaultRouter.get('/yo', async (req, res) => {
   res.send('yo');
 });
-
-
-// TODO: add short routes
 
 defaultRouter.get('/s/:shortId', async (req, res) => {
   const storyId = decode(req.params.shortId);
@@ -32,9 +30,11 @@ defaultRouter.get('/s/:shortId', async (req, res) => {
     res.redirect(redirectUrl);
     return;
   }
-  res.setHeader('Retry-After', 5).status(503).send('<h1>Service Unavailable</h1><p>Try again later</p>');
+  res
+    .setHeader('Retry-After', 5)
+    .status(503)
+    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
 });
-
 
 defaultRouter.get('/c/:shortId', async (req, res) => {
   const storyId = decode(req.params.shortId);
@@ -56,7 +56,10 @@ defaultRouter.get('/b/:shortId', async (req, res) => {
     res.redirect(redirectUrl);
     return;
   }
-  res.setHeader('Retry-After', 5).status(503).send('<h1>Service Unavailable</h1><p>Try again later</p>');
+  res
+    .setHeader('Retry-After', 5)
+    .status(503)
+    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
 });
 
 defaultRouter.get('/d/:shortId', async (req, res) => {
@@ -70,21 +73,21 @@ defaultRouter.get('/d/:shortId', async (req, res) => {
     res.redirect(redirectUrl);
     return;
   }
-  res.setHeader('Retry-After', 5).status(503).send('<h1>Service Unavailable</h1><p>Try again later</p>');
+  res
+    .setHeader('Retry-After', 5)
+    .status(503)
+    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
 });
 
 defaultRouter.all('/status', (req, res) => {
   res.send('ok');
 });
 
-
-
 app.use('/', defaultRouter);
-// app.use('/designer-news', defaultRouter); // This is needed due to uberspace routing
 
 const port = process.env.PORT || 8080;
 
 const server = app.listen(port, () =>
   console.log(`
-🚀 Server ready at: http://localhost:${port}`),
-)
+🚀 Server ready at: http://localhost:${port}`)
+);

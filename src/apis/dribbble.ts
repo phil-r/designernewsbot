@@ -12,16 +12,14 @@ export type DribbbleShot = {
   author: {
     name: string;
     url: string;
-  }
-
-}
+  };
+};
 
 async function call(method: string): Promise<any> {
   try {
     const result = await axios.get(`${BASE_URL}${method}`, { timeout: 15000 });
-    if (result.status === 200) return result.data
-  } catch (error) {
-  }
+    if (result.status === 200) return result.data;
+  } catch (error) {}
   return null;
 }
 

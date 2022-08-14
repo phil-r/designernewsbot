@@ -1,4 +1,3 @@
-
 import { projects, BehanceProject } from '../apis/behance';
 import { sendPhoto } from '../apis/telegram';
 import cache from '../cache';
@@ -17,27 +16,37 @@ async function addBehanceProject(project: BehanceProject) {
 
   const shortId = encode(project.id);
 
-  const exisitngproject = await prisma.behanceProject.findUnique({ where: { id: project.id } });
+  const exisitngproject = await prisma.behanceProject.findUnique({
+    where: { id: project.id },
+  });
   if (exisitngproject) {
     cache.set(cacheKey, project.url);
     return;
   }
-  const shortUrl = `${development ? 'http://localhost:8080' : 'https://dsgnr.news'}/b/${shortId}`;
+  const shortUrl = `${
+    development ? 'http://localhost:8080' : 'https://dsgnr.news'
+  }/b/${shortId}`;
 
-  const buttons = [{
-    'text': 'Open project',
-    'url': project.url
-  }]
+  const buttons = [
+    {
+      text: 'Open project',
+      url: project.url,
+    },
+  ];
 
   // TODO: add timeago
 
-  let message = `<b>${project.name}</b> (Score: ${project.stats.appreciations}+) #Behance\n\n`
+  let message = `<b>${project.name}</b> (Score: ${project.stats.appreciations}+) #Behance\n\n`;
   message += `<b>Link:</b> ${shortUrl}\n`;
 
   console.log('sending', project.id);
 
-  const result =
-    await sendPhoto(TELEGRAM_CHANNEL, project.covers.original, message, { 'inline_keyboard': [buttons] });
+  const result = await sendPhoto(
+    TELEGRAM_CHANNEL,
+    project.covers.original,
+    message,
+    { inline_keyboard: [buttons] }
+  );
 
   console.log('Telegram response:', result);
 
@@ -54,9 +63,9 @@ async function addBehanceProject(project: BehanceProject) {
         score: project.stats.appreciations,
         shortUrl,
         message,
-        telegramMessageId
-      }
-    })
+        telegramMessageId,
+      },
+    });
     cache.set(cacheKey, project.url);
   }
 }
@@ -65,15 +74,18 @@ export async function behanceCron() {
   const behanceProjects = await projects();
   if (!behanceProjects?.projects) return;
   const projectsList = behanceProjects.projects;
-  console.log('checking projects:', projectsList.map(project => project.id));
-  await Promise.all(projectsList.map(project => addBehanceProject(project)));
+  console.log(
+    'checking projects:',
+    projectsList.map((project) => project.id)
+  );
+  await Promise.all(projectsList.map((project) => addBehanceProject(project)));
 }
 
 export async function getBehanceProjectUrl(id: number): Promise<string | null> {
   const cacheKey = `b/${id}`;
   const cached = cache.get(cacheKey) as string;
   if (cached) return cached;
-  
+
   const project = await prisma.behanceProject.findUnique({ where: { id } });
   if (project) {
     cache.set(cacheKey, project.url);

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import 'dotenv/config';
 
 import fso from 'fs';
 import prisma from './prisma';
@@ -8,20 +8,20 @@ const fs = fso.promises;
 const TYPES = ['BehanceProject', 'DribbbleShot', 'StoryPost'];
 
 type ExportBehance = {
-  "created": number;
-  "title": string;
-  "telegram_message_id": number;
-  "message": string;
-  "url": string;
-  "short_url": string;
-  "score": number;
-}
+  created: number;
+  title: string;
+  telegram_message_id: number;
+  message: string;
+  url: string;
+  short_url: string;
+  score: number;
+};
 
 type DribbbleExport = ExportBehance;
 
 type DNExport = ExportBehance & {
-  "short_dn_url": string;
-  "text": string;
+  short_dn_url: string;
+  text: string;
 };
 
 const main = async () => {
@@ -41,7 +41,7 @@ const main = async () => {
       await memo;
       const objects = parsed[objectType];
       if (objectType === 'BehanceProject') {
-        //createMany is not supported by SQLite. ;( 
+        //createMany is not supported by SQLite. ;(
         //https://www.prisma.io/docs/reference/api-reference/prisma-client-reference#createmany
         // prisma.behanceProject.createMany()
         await Object.keys(objects).reduce(async (memo, id) => {
@@ -56,22 +56,20 @@ const main = async () => {
             shortUrl: o.short_url,
             createdAt: new Date(o.created),
             updatedAt: new Date(o.created),
-            telegramMessageId: o.telegram_message_id
-          }
+            telegramMessageId: o.telegram_message_id,
+          };
           await prisma.behanceProject.upsert({
             where: {
               id: Number(id),
             },
             create: fields,
-            update: fields
-          })
+            update: fields,
+          });
           console.log('behance id', id);
-
         }, Promise.resolve());
       }
 
       if (objectType === 'DribbbleShot') {
-
         await Object.keys(objects).reduce(async (memo, id) => {
           await memo;
           const o: DribbbleExport = objects[id];
@@ -84,23 +82,20 @@ const main = async () => {
             shortUrl: o.short_url,
             createdAt: new Date(o.created),
             updatedAt: new Date(o.created),
-            telegramMessageId: o.telegram_message_id
-          }
+            telegramMessageId: o.telegram_message_id,
+          };
           await prisma.dribbbleShot.upsert({
             where: {
               id: Number(id),
             },
             create: fields,
-            update: fields
-          })
+            update: fields,
+          });
           console.log('dribble id', id);
-
         }, Promise.resolve());
       }
 
-      
       if (objectType === 'StoryPost') {
-
         await Object.keys(objects).reduce(async (memo, id) => {
           await memo;
           const o: DNExport = objects[id];
@@ -114,22 +109,21 @@ const main = async () => {
             createdAt: new Date(o.created),
             updatedAt: new Date(o.created),
             telegramMessageId: o.telegram_message_id,
-            shortDnUrl : o.short_dn_url,
+            shortDnUrl: o.short_dn_url,
             text: o.text,
-          }
+          };
           await prisma.designerNewsStory.upsert({
             where: {
               id: Number(id),
             },
             create: fields,
-            update: fields
-          })
+            update: fields,
+          });
           console.log('dn id', id);
-
         }, Promise.resolve());
       }
     }, Promise.resolve());
   }, Promise.resolve());
-}
+};
 
 main();
