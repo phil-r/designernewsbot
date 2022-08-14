@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import { projects } from './apis/behance';
+import morgan from 'morgan';
 
 import { getBehanceProjectUrl } from './services/behance';
 import { getDNStoryCommentsUrl, getDNStoryUrl } from './services/dn';
@@ -8,6 +8,8 @@ import { getDribbleShotUrl } from './services/dribbble';
 import { decode } from './shortener';
 
 const app = express();
+
+app.use(morgan('tiny', { immediate: true })).use(morgan('tiny', {}));
 
 app.use(express.json());
 
