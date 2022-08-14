@@ -41,3 +41,9 @@ export async function projects(
 ): Promise<{ projects: BehanceProject[] } | null> {
   return await call('projects', { time, sort });
 }
+
+export async function project(
+  id: any
+): Promise<{ project: BehanceProject } | null> {
+  return await call(`projects/${id}`);
+}

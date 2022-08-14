@@ -7,12 +7,12 @@ import { encode } from '../shortener';
 
 const MINIMUM_DRIBBBLE_LIKES = 250; // TODO: reduce?
 
-async function addDribbbleShot(shot: DribbbleShot) {
+export async function addDribbbleShot(shot: DribbbleShot, ignoreLimit = false) {
   console.log('adding', shot.id);
 
   const cacheKey = `d/${shot.id}`;
   if (cache.get(cacheKey)) return;
-  if (shot.likes < MINIMUM_DRIBBBLE_LIKES) return;
+  if (!ignoreLimit && shot.likes < MINIMUM_DRIBBBLE_LIKES) return;
 
   const shortId = encode(shot.id);
 

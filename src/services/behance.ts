@@ -7,12 +7,19 @@ import { encode } from '../shortener';
 
 const MINIMUM_BEHANCE_APPRECIATIONS = 1800; // TODO: reduce?
 
-async function addBehanceProject(project: BehanceProject) {
+export async function addBehanceProject(
+  project: BehanceProject,
+  ignoreLimit = false
+) {
   console.log('adding', project.id);
 
   const cacheKey = `b/${project.id}`;
   if (cache.get(cacheKey)) return;
-  if (project.stats.appreciations < MINIMUM_BEHANCE_APPRECIATIONS) return;
+  if (
+    !ignoreLimit &&
+    project.stats.appreciations < MINIMUM_BEHANCE_APPRECIATIONS
+  )
+    return;
 
   const shortId = encode(project.id);
 
@@ -36,7 +43,10 @@ async function addBehanceProject(project: BehanceProject) {
 
   // TODO: add timeago
 
-  let message = `<b>${project.name}</b> (Score: ${project.stats.appreciations}+) #Behance\n\n`;
+  const score = '(Score: ${project.stats.appreciations}+) ';
+  let message = `<b>${project.name}</b> ${
+    ignoreLimit ? '' : score
+  }#Behance\n\n`;
   message += `<b>Link:</b> ${shortUrl}\n`;
 
   console.log('sending', project.id);

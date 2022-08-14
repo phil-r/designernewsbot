@@ -7,14 +7,17 @@ import { encode } from '../shortener';
 
 const MINIMUM_DN_STORY_VOTES = 10;
 
-async function addDNStory(story: DesignerNewsStory) {
+export async function addDNStory(
+  story: DesignerNewsStory,
+  ignoreLimit = false
+) {
   console.log('adding', story.id);
   const storyId = parseInt(story.id);
 
   const cacheKey = `dn/${story.id}`;
   if (cache.get(cacheKey)) return;
   if (story.sponsored) return;
-  if (story.vote_count < MINIMUM_DN_STORY_VOTES) return;
+  if (!ignoreLimit && story.vote_count < MINIMUM_DN_STORY_VOTES) return;
 
   const shortId = encode(storyId);
 
