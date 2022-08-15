@@ -43,7 +43,7 @@ export async function addBehanceProject(
 
   // TODO: add timeago
 
-  const score = '(Score: ${project.stats.appreciations}+) ';
+  const score = `(Score: ${project.stats.appreciations}+) `;
   let message = `<b>${project.name}</b> ${
     ignoreLimit ? '' : score
   }#Behance\n\n`;
