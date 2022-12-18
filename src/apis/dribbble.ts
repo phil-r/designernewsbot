@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://dribbble-top.herokuapp.com/';
+const BASE_URL = 'https://dribbble-top.dsgnr.news/';
 
 export type DribbbleShot = {
   id: number;
