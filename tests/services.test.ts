@@ -2,34 +2,18 @@ import './setup';
 import { beforeEach, describe, expect, test } from 'bun:test';
 import { db, outbound, resetDoubles, trace } from './setup';
 import cache from '../src/cache';
-const { addDNStory, getDNStoryUrl } = await import('../src/services/dn');
+const { getDNStoryUrl } = await import('../src/services/dn');
 const { addBehanceProject, getBehanceProjectUrl } =
   await import('../src/services/behance');
 const { addDribbbleShot, getDribbleShotUrl } =
   await import('../src/services/dribbble');
-import { project, shot, story } from './fixtures/feeds';
+import { project, shot } from './fixtures/feeds';
 
 beforeEach(() => {
   resetDoubles();
   cache.clear();
 });
 const cases = [
-  {
-    name: 'DN',
-    add: addDNStory,
-    item: story,
-    below: { ...story, vote_count: 9 },
-    table: db.designerNewsStory,
-    lookup: getDNStoryUrl,
-    method: 'sendMessage',
-    text: "<b>Synthetic story</b> (Score: 10+) #DN\n\n<b>Link:</b> http://localhost:8080/s/L\n<b>Comments:</b> http://localhost:8080/c/L\n\n\nIt's a/b\n",
-    markup: [
-      [
-        { text: 'Read', url: story.url },
-        { text: '2+ Comments', url: 'https://www.designernews.co/stories/42' },
-      ],
-    ],
-  },
   {
     name: 'Behance',
     add: addBehanceProject,
@@ -83,14 +67,10 @@ for (const c of cases)
         parse_mode: 'HTML',
         disable_notification: true,
         reply_markup: { inline_keyboard: c.markup },
-        ...(c.name === 'DN'
-          ? { text: c.text }
-          : {
-              caption: c.text,
-              photo: c.name === 'Behance' ? project.covers.original : shot.img,
-            }),
+        caption: c.text,
+        photo: c.name === 'Behance' ? project.covers.original : shot.img,
       });
-      expect(options.timeout).toBe(c.name === 'DN' ? 10000 : 30000);
+      expect(options.timeout).toBe(30000);
       expect(c.table.create.mock.calls[0][0].data).toMatchObject({
         id: 42,
         message: c.text,
@@ -129,22 +109,15 @@ for (const c of cases)
     });
   });
 
-test('sponsored DN stays excluded even with ignoreLimit', async () => {
-  await addDNStory({ ...story, sponsored: true }, true);
-  expect(outbound.posts).toEqual([]);
-  expect(db.designerNewsStory.findUnique).not.toHaveBeenCalled();
-});
-test('DN without an external URL uses comments as the stored/public destination', async () => {
-  await addDNStory({ ...story, url: '', comment: '' });
-  expect(outbound.posts[0].data.text).toBe(
-    '<b>Synthetic story</b> (Score: 10+) #DN\n\n<b>Link:</b> http://localhost:8080/c/L\n'
-  );
-  expect(outbound.posts[0].data.reply_markup.inline_keyboard).toEqual([
-    [{ text: '2+ Comments', url: 'https://www.designernews.co/stories/42' }],
-  ]);
-  expect(db.designerNewsStory.create.mock.calls[0][0].data.url).toBe(
-    'https://www.designernews.co/stories/42'
-  );
+test('legacy DN lookup returns stored URLs, caches hits, and does not cache misses', async () => {
+  expect(await getDNStoryUrl(42)).toBeNull();
+  db.designerNewsStory.findUnique.mockResolvedValue({
+    url: 'https://example.invalid/stored',
+  });
+  expect(await getDNStoryUrl(42)).toBe('https://example.invalid/stored');
+  expect(await getDNStoryUrl(42)).toBe('https://example.invalid/stored');
+  expect(db.designerNewsStory.findUnique).toHaveBeenCalledTimes(2);
+  expect(trace).toEqual([]);
 });
 test('Dribbble video uses sendVideo with the unchanged caption and timeout', async () => {
   await addDribbbleShot({
@@ -155,7 +128,7 @@ test('Dribbble video uses sendVideo with the unchanged caption and timeout', asy
   expect(outbound.posts[0].data.video).toBe(
     'https://example.invalid/video.mp4'
   );
-  expect(outbound.posts[0].data.caption).toBe(cases[2].text);
+  expect(outbound.posts[0].data.caption).toBe(cases[1].text);
   expect(outbound.posts[0].options.timeout).toBe(30000);
 });
 
@@ -163,7 +136,7 @@ test('upstream timeout/failure returns no work without writing or sending', asyn
   outbound.getError = new Error('synthetic timeout');
   const { default: cron } = await import('../src/cron');
   await cron();
-  expect(trace).toEqual(['feed:dribbble', 'feed:behance', 'feed:dn']);
+  expect(trace).toEqual(['feed:dribbble', 'feed:behance']);
   expect(outbound.posts).toEqual([]);
   for (const table of Object.values(db))
     expect(table.create).not.toHaveBeenCalled();

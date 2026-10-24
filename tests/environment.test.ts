@@ -189,7 +189,7 @@ test('documented bun run start/cron/test ignore automatic env files in parent an
       }
       mock.module('./src/persistence.ts', () => ({ default: {}, getDatabase: verify, closeDatabase() {} }));
       mock.module('./src/http.ts', () => ({ handleRequest: () => new Response('ok') }));
-      for (const name of ['dribbble','behance','dn'])
+      for (const name of ['dribbble','behance'])
         mock.module('./src/services/' + name + '.ts', () => ({ [name + 'Cron']: async () => {} }));
       Bun.serve = () => ({ port: 8080, stop() {} });
     `

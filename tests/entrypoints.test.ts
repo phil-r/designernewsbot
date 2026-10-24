@@ -1,7 +1,7 @@
 import './setup';
 import { expect, test, spyOn } from 'bun:test';
 import fs from 'node:fs';
-import { trace, db, resetDoubles } from './setup';
+import { trace, db, outbound, resetDoubles } from './setup';
 
 test('entrypoints have explicit main guards before importing them', async () => {
   for (const file of ['index', 'cron', 'import']) {
@@ -41,9 +41,24 @@ test('importing entrypoints neither listens, reads exports, sends nor writes', a
   }
 });
 
-test('one-shot cron awaits Dribbble → Behance → DN', async () => {
+test('one-shot cron awaits only Dribbble → Behance, ignoring retired DN stories', async () => {
   resetDoubles();
+  outbound.feeds.stories = [
+    {
+      id: '42',
+      title: 'Retired feed story',
+      url: 'https://example.invalid/story',
+      sponsored: false,
+      vote_count: 100,
+      comment_count: 2,
+      comment: '',
+    },
+  ];
   const { default: cron } = await import('../src/cron');
   await cron();
-  expect(trace).toEqual(['feed:dribbble', 'feed:behance', 'feed:dn']);
+  expect(trace).toEqual(['feed:dribbble', 'feed:behance']);
+  expect(outbound.posts).toEqual([]);
+  expect(db.designerNewsStory.findUnique).not.toHaveBeenCalled();
+  expect(db.designerNewsStory.create).not.toHaveBeenCalled();
+  expect(db.designerNewsStory.upsert).not.toHaveBeenCalled();
 });

@@ -42,13 +42,13 @@ test('startup precedes listening/feeds and cron closes resources on success and 
       getDatabase: () => { events.push('open'); if (failOpen) throw Error('private path'); },
       closeDatabase: () => events.push('close'), default: {}
     }));
-    for (const name of ['dribbble', 'behance', 'dn']) {
+    for (const name of ['dribbble', 'behance']) {
       mock.module(${JSON.stringify(resolve(import.meta.dir, '../src/services'))} + '/' + name + '.ts', () => ({
         [name + 'Cron']: async () => { events.push(name); if (failJob) throw Error('private response'); }
       }));
     }
     const { default: cron } = await import(${JSON.stringify(source('cron'))});
-    await cron(); assert.deepEqual(events, ['open','dribbble','behance','dn','close']);
+    await cron(); assert.deepEqual(events, ['open','dribbble','behance','close']);
     events = []; failJob = true;
     await assert.rejects(cron); assert.deepEqual(events, ['open','dribbble','close']);
     events = []; failOpen = true;

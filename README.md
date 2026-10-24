@@ -1,18 +1,12 @@
 # designernewsbot
 
-Telegram bot that posts new hot stories from Designer News to [telegram channel](https://telegram.me/designer_news)
+Telegram bot that posts projects from Behance and shots from Dribbble to [telegram channel](https://telegram.me/designer_news)
 
 ## Backend
 
 Bot runs on a small [Hetzner cloud](https://hetzner.cloud/?ref=gy7R6jM4nx5J) machine
 
 [Old version](https://github.com/phil-r/designernewsbot/tree/old-python-version) of this bot was written in python and was running on [Google App Engine](https://cloud.google.com/appengine/)
-
-## Designer News API
-
-Bot uses [Designer News API](https://github.com/DesignerNews/dn_api_v2)
-
-It loads [top stories](https://www.designernews.co/api/v2/stories) every minute and posts any story that reached _10+_ score
 
 ## Behance API
 
