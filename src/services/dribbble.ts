@@ -83,7 +83,7 @@ export async function dribbbleCron() {
 
 export async function getDribbleShotUrl(id: number): Promise<string | null> {
   const cacheKey = `d/${id}`;
-  const cached = cache.get(cacheKey) as string;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const shot = await db.dribbbleShot.findUnique({ where: { id } });

@@ -3,7 +3,7 @@ import db from '../persistence';
 
 export async function getDNStoryUrl(id: number): Promise<string | null> {
   const cacheKey = `dn/${id}`;
-  const cached = cache.get(cacheKey) as string;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const story = await db.designerNewsStory.findUnique({ where: { id } });

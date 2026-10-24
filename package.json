@@ -7,10 +7,10 @@
   "license": "MIT",
   "devDependencies": {
     "@types/bun": "1.4.4",
-    "husky": "8.0.3"
+    "husky": "9.1.7"
   },
   "dependencies": {
-    "lru-cache": "7.18.1"
+    "lru-cache": "11.5.3"
   },
   "scripts": {
     "dev": "bun --no-env-file --watch src/index.ts",
@@ -23,7 +23,7 @@
     "check": "bun --no-env-file check --no-script",
     "fmt": "bun --no-env-file fmt --no-script src tests scripts package.json tsconfig.json bunfig.toml README.md",
     "fmt:check": "bun --no-env-file fmt --no-script --check src tests scripts package.json tsconfig.json bunfig.toml README.md",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "packageManager": "bun@1.4.4",
   "engines": {

@@ -94,7 +94,7 @@ export async function behanceCron() {
 
 export async function getBehanceProjectUrl(id: number): Promise<string | null> {
   const cacheKey = `b/${id}`;
-  const cached = cache.get(cacheKey) as string;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const project = await db.behanceProject.findUnique({ where: { id } });
