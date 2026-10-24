@@ -1,0 +1,11 @@
+# Disable automatic env files in the parent script runner as well as children.
+env = false
+
+[fmt]
+singleQuote = true
+trailingComma = "es5"
+sortImports = false
+sortPackageJson = false
+
+[test]
+preload = ["./tests/offline.ts"]

@@ -1,8 +1,9 @@
+import { settlePosts } from '../settle-posts';
 import { DribbbleShot, dribbbleTop } from '../apis/dribbble';
 import { sendPhoto, sendVideo } from '../apis/telegram';
 import cache from '../cache';
 import { development, TELEGRAM_CHANNEL } from '../helpers';
-import prisma from '../prisma';
+import db from '../persistence';
 import { encode } from '../shortener';
 
 const MINIMUM_DRIBBBLE_LIKES = 250; // TODO: reduce?
@@ -16,7 +17,7 @@ export async function addDribbbleShot(shot: DribbbleShot, ignoreLimit = false) {
 
   const shortId = encode(shot.id);
 
-  const exisitngShot = await prisma.dribbbleShot.findUnique({
+  const exisitngShot = await db.dribbbleShot.findUnique({
     where: { id: shot.id },
   });
   if (exisitngShot) {
@@ -54,7 +55,7 @@ export async function addDribbbleShot(shot: DribbbleShot, ignoreLimit = false) {
   if (result?.ok) {
     telegramMessageId = result.result.message_id;
     // TODO: in python version we actually ignored telegram errors to prevent double postings
-    await prisma.dribbbleShot.create({
+    await db.dribbbleShot.create({
       data: {
         id: shot.id,
         title: shot.title,
@@ -77,7 +78,7 @@ export async function dribbbleCron() {
     'checking shots:',
     shotsList.map((shot) => shot.id)
   );
-  await Promise.all(shotsList.map((shot) => addDribbbleShot(shot)));
+  await settlePosts(shotsList.map((shot) => addDribbbleShot(shot)));
 }
 
 export async function getDribbleShotUrl(id: number): Promise<string | null> {
@@ -85,7 +86,7 @@ export async function getDribbleShotUrl(id: number): Promise<string | null> {
   const cached = cache.get(cacheKey) as string;
   if (cached) return cached;
 
-  const shot = await prisma.dribbbleShot.findUnique({ where: { id } });
+  const shot = await db.dribbbleShot.findUnique({ where: { id } });
   if (shot) {
     cache.set(cacheKey, shot.url);
     return shot.url;

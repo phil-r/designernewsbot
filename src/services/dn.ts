@@ -1,8 +1,9 @@
+import { settlePosts } from '../settle-posts';
 import { DesignerNewsStory, stories } from '../apis/dn';
 import { sendMessage, sendPhoto } from '../apis/telegram';
 import cache from '../cache';
 import { development, TELEGRAM_CHANNEL } from '../helpers';
-import prisma from '../prisma';
+import db from '../persistence';
 import { encode } from '../shortener';
 
 const MINIMUM_DN_STORY_VOTES = 10;
@@ -21,7 +22,7 @@ export async function addDNStory(
 
   const shortId = encode(storyId);
 
-  const exisitngstory = await prisma.designerNewsStory.findUnique({
+  const exisitngstory = await db.designerNewsStory.findUnique({
     where: { id: storyId },
   });
   if (exisitngstory) {
@@ -87,7 +88,7 @@ export async function addDNStory(
   if (result?.ok) {
     telegramMessageId = result.result.message_id;
     // TODO: in python version we actually ignored telegram errors to prevent double postings
-    await prisma.designerNewsStory.create({
+    await db.designerNewsStory.create({
       data: {
         id: storyId,
         title: story.title,
@@ -112,7 +113,7 @@ export async function dnCron() {
     'checking stories:',
     storysList.map((story) => story.id)
   );
-  await Promise.all(storysList.map((story) => addDNStory(story)));
+  await settlePosts(storysList.map((story) => addDNStory(story)));
 }
 
 export async function getDNStoryUrl(id: number): Promise<string | null> {
@@ -120,7 +121,7 @@ export async function getDNStoryUrl(id: number): Promise<string | null> {
   const cached = cache.get(cacheKey) as string;
   if (cached) return cached;
 
-  const story = await prisma.designerNewsStory.findUnique({ where: { id } });
+  const story = await db.designerNewsStory.findUnique({ where: { id } });
   if (story) {
     cache.set(cacheKey, story.url);
     return story.url;

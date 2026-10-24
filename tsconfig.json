@@ -1,9 +1,13 @@
 {
   "compilerOptions": {
-    "sourceMap": true,
-    "outDir": "dist",
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext"],
+    "types": ["bun"],
     "strict": true,
-    "lib": ["esnext"],
+    "noEmit": true,
     "esModuleInterop": true
-  }
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]
 }

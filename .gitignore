@@ -13,3 +13,14 @@ hidden
 
 # typescript build folder
 dist
+
+# SQLite sidecars, private exports and environment variants
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env.*
+!.env.example
+export/

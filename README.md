@@ -33,8 +33,8 @@ Bot uses internal shortener
 ## How to run your own `designernewsbot`
 
 - Clone this project
-- Run `yarn` to install dependencies
-- Run `yarn migrate:dev` to create a databse and apply migrations
+- Run `bun install` to install dependencies
+- Run `bun run db:init prisma/dev.db` to create a databse and apply migrations
 - Register your bot via [BotFather](https://telegram.me/BotFather)
 - Rename `.env.example` to `.env` and
   - replace `YOUR_TELEGRAM_BOT_TOKEN` with your bot token
@@ -43,7 +43,7 @@ Bot uses internal shortener
 
 ## Local development
 
-To run server locally you can run `yarn dev`
+To run server locally you can run `bun run dev`
 
 ## See also
 

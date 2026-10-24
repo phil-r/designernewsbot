@@ -13,7 +13,7 @@ async function call(method: string, data: any, timeout = 10000): Promise<any> {
     });
     if (result.status === 200) return result.data;
   } catch (error) {
-    console.error(error);
+    console.error('Telegram request failed');
   }
   return null;
 }

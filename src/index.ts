@@ -1,95 +1,53 @@
-import 'dotenv/config';
-import express from 'express';
-import morgan from 'morgan';
+import './environment';
+import { getDatabase, closeDatabase } from './persistence';
+import { handleRequest } from './http';
 
-import { getBehanceProjectUrl } from './services/behance';
-import { getDNStoryCommentsUrl, getDNStoryUrl } from './services/dn';
-import { getDribbleShotUrl } from './services/dribbble';
-import { decode } from './shortener';
+export function parsePort(value: string | undefined): number {
+  if (value === undefined) return 8080;
+  if (!/^\d+$/.test(value))
+    throw new Error('PORT must be an integer from 1 to 65535');
+  const port = Number(value);
+  if (port < 1 || port > 65535)
+    throw new Error('PORT must be an integer from 1 to 65535');
+  return port;
+}
 
-const app = express();
-
-app.use(morgan('tiny', { immediate: true })).use(morgan('tiny', {}));
-
-app.use(express.json());
-
-const defaultRouter = express.Router();
-
-defaultRouter.use('/', express.static('static'));
-
-defaultRouter.get('/yo', async (req, res) => {
-  res.send('yo');
-});
-
-defaultRouter.get('/s/:shortId', async (req, res) => {
-  const storyId = decode(req.params.shortId);
-  if (Number.isNaN(storyId)) {
-    res.status(400).send('Malformed request');
-    return;
+export function startServer() {
+  const port = parsePort(process.env.PORT);
+  getDatabase(); // Fail closed before opening the listener.
+  let server;
+  try {
+    server = Bun.serve({ port, fetch: handleRequest });
+  } catch (error) {
+    closeDatabase();
+    throw error;
   }
-  const redirectUrl = await getDNStoryUrl(storyId);
-  if (redirectUrl) {
-    res.redirect(redirectUrl);
-    return;
+  console.log(`server ready on port ${server.port}`);
+  return server;
+}
+
+if (require.main === module) {
+  try {
+    const server = startServer();
+    let stopping = false;
+    const shutdown = async () => {
+      if (stopping) return;
+      stopping = true;
+      try {
+        await server.stop(); // Drain active requests before closing SQLite.
+      } catch {
+        console.error('HTTP shutdown failed');
+        process.exitCode = 1;
+      } finally {
+        closeDatabase();
+      }
+    };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+  } catch {
+    console.error(
+      'server startup failed; check PORT and database configuration'
+    );
+    process.exitCode = 1;
   }
-  res
-    .setHeader('Retry-After', 5)
-    .status(503)
-    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
-});
-
-defaultRouter.get('/c/:shortId', async (req, res) => {
-  const storyId = decode(req.params.shortId);
-  if (Number.isNaN(storyId)) {
-    res.status(400).send('Malformed request');
-    return;
-  }
-  res.redirect(getDNStoryCommentsUrl(storyId));
-});
-
-defaultRouter.get('/b/:shortId', async (req, res) => {
-  const projectId = decode(req.params.shortId);
-  if (Number.isNaN(projectId)) {
-    res.status(400).send('Malformed request');
-    return;
-  }
-  const redirectUrl = await getBehanceProjectUrl(projectId);
-  if (redirectUrl) {
-    res.redirect(redirectUrl);
-    return;
-  }
-  res
-    .setHeader('Retry-After', 5)
-    .status(503)
-    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
-});
-
-defaultRouter.get('/d/:shortId', async (req, res) => {
-  const shotId = decode(req.params.shortId);
-  if (Number.isNaN(shotId)) {
-    res.status(400).send('Malformed request');
-    return;
-  }
-  const redirectUrl = await getDribbleShotUrl(shotId);
-  if (redirectUrl) {
-    res.redirect(redirectUrl);
-    return;
-  }
-  res
-    .setHeader('Retry-After', 5)
-    .status(503)
-    .send('<h1>Service Unavailable</h1><p>Try again later</p>');
-});
-
-defaultRouter.all('/status', (req, res) => {
-  res.send('ok');
-});
-
-app.use('/', defaultRouter);
-
-const port = process.env.PORT || 8080;
-
-const server = app.listen(port, () =>
-  console.log(`
-🚀 Server ready at: http://localhost:${port}`)
-);
+}

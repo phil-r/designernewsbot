@@ -1,8 +1,9 @@
+import { settlePosts } from '../settle-posts';
 import { projects, BehanceProject } from '../apis/behance';
 import { sendPhoto } from '../apis/telegram';
 import cache from '../cache';
 import { development, TELEGRAM_CHANNEL } from '../helpers';
-import prisma from '../prisma';
+import db from '../persistence';
 import { encode } from '../shortener';
 
 const MINIMUM_BEHANCE_APPRECIATIONS = 1800; // TODO: reduce?
@@ -23,7 +24,7 @@ export async function addBehanceProject(
 
   const shortId = encode(project.id);
 
-  const exisitngproject = await prisma.behanceProject.findUnique({
+  const exisitngproject = await db.behanceProject.findUnique({
     where: { id: project.id },
   });
   if (exisitngproject) {
@@ -65,7 +66,7 @@ export async function addBehanceProject(
   if (result?.ok) {
     telegramMessageId = result.result.message_id;
     // TODO: in python version we actually ignored telegram errors to prevent double postings
-    await prisma.behanceProject.create({
+    await db.behanceProject.create({
       data: {
         id: project.id,
         title: project.name,
@@ -88,7 +89,7 @@ export async function behanceCron() {
     'checking projects:',
     projectsList.map((project) => project.id)
   );
-  await Promise.all(projectsList.map((project) => addBehanceProject(project)));
+  await settlePosts(projectsList.map((project) => addBehanceProject(project)));
 }
 
 export async function getBehanceProjectUrl(id: number): Promise<string | null> {
@@ -96,7 +97,7 @@ export async function getBehanceProjectUrl(id: number): Promise<string | null> {
   const cached = cache.get(cacheKey) as string;
   if (cached) return cached;
 
-  const project = await prisma.behanceProject.findUnique({ where: { id } });
+  const project = await db.behanceProject.findUnique({ where: { id } });
   if (project) {
     cache.set(cacheKey, project.url);
     return project.url;

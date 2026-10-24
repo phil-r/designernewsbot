@@ -4,3 +4,12 @@ prisma/dev.db-shm
 prisma/dev.db-wal
 dist
 .env
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env.*
+hidden
+export
