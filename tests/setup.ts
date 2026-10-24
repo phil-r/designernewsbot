@@ -1,5 +1,6 @@
 import { mock } from 'bun:test';
 import './offline';
+import { setFetchFixture } from './fixtures/network-policy';
 
 export const trace: string[] = [];
 const table = (name: string) => ({
@@ -28,31 +29,48 @@ export const outbound = {
   postError: null as Error | null,
   posts: [] as { url: string; data: any; options: any }[],
 };
-mock.module(import.meta.resolve('axios'), () => ({
-  default: {
-    get: mock(async (url: string, options: any) => {
-      if (url.startsWith('https://dribbble-top.dsgnr.news/'))
-        trace.push('feed:dribbble');
-      else if (url.startsWith('https://www.behance.net/v2/'))
-        trace.push('feed:behance');
-      else if (url.startsWith('https://www.designernews.co/api/v2/'))
-        trace.push('feed:dn');
-      else throw new Error('Unexpected outbound GET');
-      if (outbound.getError) throw outbound.getError;
-      return { status: 200, data: outbound.feeds };
-    }),
-    post: mock(async (url: string, data: any, options: any) => {
-      if (!url.startsWith('https://api.telegram.org/botoffline-test-token/'))
-        throw new Error('Unexpected outbound POST');
+function installOutboundFixture() {
+  setFetchFixture((url, options) => {
+    if (
+      (!options?.method || options.method === 'GET') &&
+      ((url.origin === 'https://dribbble-top.dsgnr.news' &&
+        url.pathname === '/top') ||
+        (url.origin === 'https://www.behance.net' &&
+          /^\/v2\/projects(?:\/[^/]+)?$/.test(url.pathname)))
+    ) {
+      trace.push(
+        url.hostname === 'www.behance.net' ? 'feed:behance' : 'feed:dribbble'
+      );
+      return (async () => {
+        if (outbound.getError) throw outbound.getError;
+        return Response.json(outbound.feeds);
+      })();
+    }
+    if (
+      options?.method === 'POST' &&
+      url.origin === 'https://api.telegram.org' &&
+      /^\/botoffline-test-token\/send(?:Message|Photo|Video|MediaGroup)$/.test(
+        url.pathname
+      )
+    ) {
       trace.push('send');
-      outbound.posts.push({ url, data, options });
-      if (outbound.postError) throw outbound.postError;
-      return { status: 200, data: outbound.result };
-    }),
-  },
-}));
+      outbound.posts.push({
+        url: url.href,
+        data: JSON.parse(options.body as string),
+        options,
+      });
+      return (async () => {
+        if (outbound.postError) throw outbound.postError;
+        return Response.json(outbound.result);
+      })();
+    }
+    return undefined;
+  });
+}
+installOutboundFixture();
 
 export function resetDoubles() {
+  installOutboundFixture();
   trace.length = 0;
   outbound.posts.length = 0;
   outbound.getError = null;

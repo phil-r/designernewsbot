@@ -11,7 +11,11 @@ test('cold service lookups use native SQLite; existing and missing/incompatible 
       import { mock } from 'bun:test';
       import assert from 'node:assert/strict';
       let sends = 0;
-      mock.module(${JSON.stringify(import.meta.resolve('axios'))}, () => ({ default: { get: async () => { throw Error('Forbidden feed request'); }, post: async () => { sends++; throw Error('Forbidden send'); } } }));
+      const { setFetchFixture } = await import(${JSON.stringify(resolve(import.meta.dir, 'fixtures/network-policy.ts'))});
+      setFetchFixture((url, init) => {
+        if (url.origin === 'https://api.telegram.org' && init?.method === 'POST') sends++;
+        throw Error('Forbidden request');
+      });
       const { getDNStoryUrl } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/services/dn.ts'))});
       const { addBehanceProject, getBehanceProjectUrl } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/services/behance.ts'))});
       const { addDribbbleShot, getDribbleShotUrl } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/services/dribbble.ts'))});

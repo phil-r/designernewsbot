@@ -35,11 +35,15 @@ test('root-only explicit environment policy, external precedence and channel sel
         assert.equal(development, ${mode !== 'production'});
         assert.equal(TELEGRAM_CHANNEL, ${JSON.stringify(mode === 'production' ? '@designer_news' : '@designer_news_st')});
         let delivered = false;
-        mock.module(${JSON.stringify(import.meta.resolve('axios'))}, () => ({ default: { post: async (url, data) => {
+        const { setFetchFixture } = await import(${JSON.stringify(resolve(import.meta.dir, 'fixtures/network-policy.ts'))});
+        setFetchFixture((requestUrl, init) => {
+          const url = requestUrl.href;
+          assert.equal(init.method, 'POST');
+          const data = JSON.parse(init.body);
           assert.equal(url, 'https://api.telegram.org/botexternal-token/sendMessage');
           assert.equal(data.chat_id, TELEGRAM_CHANNEL);
-          delivered = true; return { status: 200, data: { ok: true } };
-        } } }));
+          delivered = true; return Promise.resolve(Response.json({ ok: true }));
+        });
         const { sendMessage } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/apis/telegram.ts'))});
         await sendMessage(TELEGRAM_CHANNEL, 'synthetic');
         assert.equal(delivered, true);
@@ -98,13 +102,13 @@ test('actual entrypoint loads synthetic project-root env before modules capture 
       import { mock } from 'bun:test';
       import assert from 'node:assert/strict';
       let delivered = false;
-      mock.module(${JSON.stringify(import.meta.resolve('axios'))}, () => ({ default: {
-        post: async (url, data) => {
-          assert.equal(url, 'https://api.telegram.org/botroot-fixture-token/sendMessage');
-          assert.equal(data.chat_id, '@designer_news');
-          delivered = true; return { status: 200, data: { ok: true } };
-        }
-      } }));
+      const { setFetchFixture } = await import(${JSON.stringify(resolve(import.meta.dir, 'fixtures/network-policy.ts'))});
+      setFetchFixture((url, init) => {
+        assert.equal(url.href, 'https://api.telegram.org/botroot-fixture-token/sendMessage');
+        assert.equal(init.method, 'POST');
+        assert.equal(JSON.parse(init.body).chat_id, '@designer_news');
+        delivered = true; return Promise.resolve(Response.json({ ok: true }));
+      });
       await import(${JSON.stringify(join(directory, 'src/index.ts'))});
       const { sendMessage } = await import(${JSON.stringify(join(directory, 'src/apis/telegram.ts'))});
       const { TELEGRAM_CHANNEL } = await import(${JSON.stringify(join(directory, 'src/helpers.ts'))});

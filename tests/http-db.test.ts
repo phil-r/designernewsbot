@@ -12,10 +12,6 @@ test('native HTTP resolves cold short links from original-schema SQLite fixtures
       import assert from 'node:assert/strict';
       mock.module('dotenv/config', () => ({}));
       mock.module('dotenv', () => ({ default: { config: () => ({}) } }));
-      mock.module(${JSON.stringify(import.meta.resolve('axios'))}, () => ({ default: {
-        get: async () => { throw Error('Forbidden upstream request'); },
-        post: async () => { throw Error('Forbidden Telegram send'); }
-      } }));
       const { handleRequest } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/http.ts'))});
       const { closeDatabase } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/db.ts'))});
       try {

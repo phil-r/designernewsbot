@@ -7,6 +7,17 @@ test('network guard rejects non-loopback fetch and Node socket access before con
   expect(isNetworkGuard(fetch)).toBe(true);
   expect(isNetworkGuard(net.Socket.prototype.connect)).toBe(true);
   expect(() => fetch('https://example.invalid/')).toThrow('non-loopback');
+  expect(() => fetch('https://www.designernews.co/api/v2/stories')).toThrow(
+    'non-loopback'
+  );
+  expect(() => fetch('https://dribbble-top.dsgnr.news/unmatched')).toThrow(
+    'non-loopback'
+  );
+  expect(() =>
+    fetch('https://dribbble-top.dsgnr.news/top', {
+      proxy: 'http://example.invalid',
+    })
+  ).toThrow('Offline');
   expect(() =>
     fetch('http://127.0.0.1/', { proxy: 'http://example.invalid' })
   ).toThrow('Offline');

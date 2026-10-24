@@ -5,6 +5,15 @@ import dgram from 'node:dgram';
 import dns from 'node:dns';
 import http2 from 'node:http2';
 
+type FetchFixture = (
+  url: URL,
+  init?: RequestInit
+) => Promise<Response> | undefined;
+let fetchFixture: FetchFixture | undefined;
+export function setFetchFixture(fixture?: FetchFixture) {
+  fetchFixture = fixture;
+}
+
 const guarded = new WeakSet<Function>();
 export const isNetworkGuard = (value: Function) => guarded.has(value);
 
@@ -36,6 +45,8 @@ export function installNetworkPolicy(allowLoopback = false) {
       const url = new URL(
         typeof input === 'string' || input instanceof URL ? input : input.url
       );
+      const response = fetchFixture?.(url, init);
+      if (response) return response;
       if (!allowed(url.hostname) || !['http:', 'https:'].includes(url.protocol))
         return deny();
       // Never allow a permitted loopback response to escape via redirects.

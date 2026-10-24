@@ -1,17 +1,19 @@
-import axios from 'axios';
-
 const BASE_URL = 'https://api.telegram.org/bot';
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 async function call(method: string, data: any, timeout = 10000): Promise<any> {
   try {
-    const result = await axios.post(`${BASE_URL}${TOKEN}/${method}`, data, {
-      timeout,
+    const result = await fetch(`${BASE_URL}${TOKEN}/${method}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(timeout),
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    if (result.status === 200) return result.data;
+    if (result.status === 200) return await result.json();
+    if (result.status < 200 || result.status >= 300)
+      console.error('Telegram request failed');
   } catch (error) {
     console.error('Telegram request failed');
   }

@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 const BASE_URL = 'https://dribbble-top.dsgnr.news/';
 
 export type DribbbleShot = {
@@ -17,8 +15,10 @@ export type DribbbleShot = {
 
 async function call(method: string): Promise<any> {
   try {
-    const result = await axios.get(`${BASE_URL}${method}`, { timeout: 15000 });
-    if (result.status === 200) return result.data;
+    const result = await fetch(`${BASE_URL}${method}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (result.status === 200) return await result.json();
   } catch (error) {}
   return null;
 }

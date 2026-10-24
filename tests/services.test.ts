@@ -70,7 +70,8 @@ for (const c of cases)
         caption: c.text,
         photo: c.name === 'Behance' ? project.covers.original : shot.img,
       });
-      expect(options.timeout).toBe(30000);
+      expect(options.signal).toBeInstanceOf(AbortSignal);
+      expect(options.signal.aborted).toBe(false);
       expect(c.table.create.mock.calls[0][0].data).toMatchObject({
         id: 42,
         message: c.text,
@@ -129,7 +130,7 @@ test('Dribbble video uses sendVideo with the unchanged caption and timeout', asy
     'https://example.invalid/video.mp4'
   );
   expect(outbound.posts[0].data.caption).toBe(cases[1].text);
-  expect(outbound.posts[0].options.timeout).toBe(30000);
+  expect(outbound.posts[0].options.signal).toBeInstanceOf(AbortSignal);
 });
 
 test('upstream timeout/failure returns no work without writing or sending', async () => {
