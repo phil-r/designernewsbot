@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import dotenv from 'dotenv';
+import { parseEnv } from 'node:util';
 
 export const projectEnvPath = fileURLToPath(
   new URL('../.env', import.meta.url)
@@ -18,7 +18,7 @@ export function loadEnvironment(
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
     throw new Error('unable to load project environment');
   }
-  for (const [key, value] of Object.entries(dotenv.parse(contents))) {
+  for (const [key, value] of Object.entries(parseEnv(contents))) {
     if (env[key] === undefined) env[key] = value;
   }
 }
