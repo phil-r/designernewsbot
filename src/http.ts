@@ -87,7 +87,8 @@ async function route(request: Request): Promise<Response> {
     return text('Malformed request', 400);
   }
   const id = decode(shortId);
-  if (!Number.isFinite(id)) return text('Malformed request', 400);
+  if (!Number.isInteger(id) || id > 2147483647)
+    return text('Malformed request', 400);
   const prefix = match[1].toLowerCase();
   const target =
     prefix === 'c'

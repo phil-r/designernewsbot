@@ -14,6 +14,7 @@ test('native HTTP resolves cold short links from original-schema SQLite fixtures
       mock.module('dotenv', () => ({ default: { config: () => ({}) } }));
       const { handleRequest } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/http.ts'))});
       const { closeDatabase } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/db.ts'))});
+      const { encode } = await import(${JSON.stringify(resolve(import.meta.dir, '../src/shortener.ts'))});
       try {
         for (const prefix of ['s', 'b', 'd']) {
           const response = await handleRequest(new Request('http://localhost/' + prefix.toUpperCase() + '/L/?ignored=1'));
@@ -25,6 +26,13 @@ test('native HTTP resolves cold short links from original-schema SQLite fixtures
           const missing = await handleRequest(new Request('http://localhost/' + prefix + '/Y'));
           assert.equal(missing.status, 503);
           assert.equal(missing.headers.get('retry-after'), '5');
+        }
+        for (const prefix of ['s', 'b', 'c', 'd']) {
+          for (const method of ['GET', 'HEAD']) {
+            const oversized = await handleRequest(new Request('http://localhost/' + prefix + '/' + encode(2147483648), { method }));
+            assert.equal(oversized.status, 400);
+            assert.equal(await oversized.text(), method === 'HEAD' ? '' : 'Malformed request');
+          }
         }
         const comments = await handleRequest(new Request('http://localhost/c/L'));
         assert.equal(comments.status, 302);

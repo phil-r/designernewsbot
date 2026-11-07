@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, expect, test, spyOn } from 'bun:test';
 import type { Server } from 'bun';
 import { db, resetDoubles, outbound } from './setup';
 import cache from '../src/cache';
+import { encode } from '../src/shortener';
 const { handleRequest } = await import('../src/http');
 const { parsePort } = await import('../src/index');
 let server: Server<undefined>;
@@ -162,6 +163,43 @@ test('malformed alphabet, percent escapes and unknown/traversal paths', async ()
   ]) {
     expect((await request(path)).status).toBe(404);
   }
+});
+
+test('oversized short-link IDs are rejected before persistence, including HEAD', async () => {
+  for (const prefix of ['s', 'b', 'c', 'd']) {
+    for (const id of [
+      encode(2147483648),
+      encode(Number.MAX_SAFE_INTEGER),
+      'Z'.repeat(200),
+    ]) {
+      for (const method of ['GET', 'HEAD']) {
+        const response = await request(`/${prefix}/${id}`, { method });
+        expect(response.status).toBe(400);
+        expect(await response.text()).toBe(
+          method === 'HEAD' ? '' : 'Malformed request'
+        );
+      }
+    }
+  }
+  for (const table of Object.values(db))
+    expect(table.findUnique).not.toHaveBeenCalled();
+});
+
+test('maximum signed 32-bit short-link ID remains valid', async () => {
+  const id = 2147483647;
+  for (const table of Object.values(db))
+    table.findUnique.mockResolvedValue({ url: 'https://example.invalid/max' });
+  for (const prefix of ['s', 'b', 'c', 'd']) {
+    const response = await request(`/${prefix}/${encode(id)}`);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe(
+      prefix === 'c'
+        ? `https://www.designernews.co/stories/${id}`
+        : 'https://example.invalid/max'
+    );
+  }
+  for (const table of Object.values(db))
+    expect(table.findUnique).toHaveBeenCalledWith({ where: { id } });
 });
 
 test('HEAD suppresses body for health and error responses', async () => {
