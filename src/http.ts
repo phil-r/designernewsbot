@@ -71,12 +71,26 @@ async function staticResponse(request: Request, name: string) {
   return new Response(bytes, { headers });
 }
 
-async function route(request: Request): Promise<Response> {
+type RouteType =
+  | 'other'
+  | 'static'
+  | 'short-story'
+  | 'short-comments'
+  | 'short-behance'
+  | 'short-dribbble';
+
+async function route(
+  request: Request,
+  diagnostic: { routeType: RouteType }
+): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (/^\/status\/?$/i.test(path)) return text('ok');
   if (!['GET', 'HEAD'].includes(request.method)) return text('Not Found', 404);
   const asset = assets.get(path);
-  if (asset) return staticResponse(request, asset);
+  if (asset) {
+    diagnostic.routeType = 'static';
+    return staticResponse(request, asset);
+  }
   if (/^\/yo\/?$/i.test(path)) return text('yo');
   const match = path.match(/^\/([sbcd])\/([^/]+)\/?$/i);
   if (!match) return text('Not Found', 404);
@@ -90,6 +104,19 @@ async function route(request: Request): Promise<Response> {
   if (!Number.isInteger(id) || id > 2147483647)
     return text('Malformed request', 400);
   const prefix = match[1].toLowerCase();
+  switch (prefix) {
+    case 's':
+      diagnostic.routeType = 'short-story';
+      break;
+    case 'c':
+      diagnostic.routeType = 'short-comments';
+      break;
+    case 'b':
+      diagnostic.routeType = 'short-behance';
+      break;
+    default:
+      diagnostic.routeType = 'short-dribbble';
+  }
   const target =
     prefix === 'c'
       ? getDNStoryCommentsUrl(id)
@@ -112,11 +139,21 @@ async function route(request: Request): Promise<Response> {
 
 export async function handleRequest(request: Request): Promise<Response> {
   let response: Response;
+  const diagnostic: { routeType: RouteType } = { routeType: 'other' };
   try {
-    response = await route(request);
-  } catch {
-    // Error objects/URLs can contain database paths, request queries or tokens.
-    console.error('HTTP request failed');
+    response = await route(request, diagnostic);
+  } catch (error) {
+    // Never read error names/messages: they and URLs can contain secrets.
+    let category = 'unknown';
+    if (error instanceof TypeError) category = 'type_error';
+    else if (error instanceof RangeError) category = 'range_error';
+    else if (error instanceof URIError) category = 'uri_error';
+    else if (error instanceof Error) category = 'error';
+    console.error('HTTP request failed', {
+      timestamp: new Date().toISOString(),
+      category,
+      routeType: diagnostic.routeType,
+    });
     response = text('Internal Server Error', 500);
   }
   return request.method === 'HEAD'

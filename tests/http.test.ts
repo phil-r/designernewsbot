@@ -229,10 +229,139 @@ test('repository rejection is a sanitized 500, including HEAD', async () => {
         method === 'HEAD' ? '' : 'Internal Server Error'
       );
     }
-    expect(log.mock.calls).toEqual([
-      ['HTTP request failed'],
-      ['HTTP request failed'],
-    ]);
+    expect(log.mock.calls).toHaveLength(2);
+    for (const call of log.mock.calls) {
+      expect(call).toEqual([
+        'HTTP request failed',
+        {
+          timestamp: expect.stringMatching(
+            /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/
+          ),
+          category: 'error',
+          routeType: 'short-story',
+        },
+      ]);
+    }
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test('failure diagnostics use only fixed categories, never error properties or request secrets', async () => {
+  const secret =
+    'token=private /private/database.sqlite https://stored.invalid/secret';
+  const namedError = new Error(secret);
+  Object.defineProperty(namedError, 'name', {
+    get() {
+      throw new Error('must not read error.name');
+    },
+  });
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    for (const [error, category] of [
+      [new TypeError(secret), 'type_error'],
+      [new RangeError(secret), 'range_error'],
+      [new URIError(secret), 'uri_error'],
+      [namedError, 'error'],
+      [{ name: secret, message: secret, stack: secret }, 'unknown'],
+      [secret, 'unknown'],
+      [null, 'unknown'],
+    ] as const) {
+      for (const [prefix, table, routeType] of [
+        ['b', db.behanceProject, 'short-behance'],
+        ['d', db.dribbbleShot, 'short-dribbble'],
+      ] as const) {
+        table.findUnique.mockRejectedValue(error);
+        for (const method of ['GET', 'HEAD']) {
+          cache.clear();
+          log.mockClear();
+          const start = Date.now();
+          const response = await handleRequest(
+            new Request(
+              `https://user:password@example.invalid/${prefix.toUpperCase()}/%4c/?token=query-secret`,
+              { method, headers: { Authorization: 'Bearer header-secret' } }
+            )
+          );
+          expect(response.status).toBe(500);
+          expect(await response.text()).toBe(
+            method === 'HEAD' ? '' : 'Internal Server Error'
+          );
+          expect(log.mock.calls).toEqual([
+            [
+              'HTTP request failed',
+              {
+                timestamp: expect.any(String),
+                category,
+                routeType,
+              },
+            ],
+          ]);
+          const timestamp = Date.parse(
+            (log.mock.calls[0][1] as { timestamp: string }).timestamp
+          );
+          expect(timestamp).toBeGreaterThanOrEqual(start);
+          expect(timestamp).toBeLessThanOrEqual(Date.now());
+        }
+      }
+    }
+  } finally {
+    log.mockRestore();
+  }
+});
+
+test('static, comments and other failures get safe route labels, including HEAD', async () => {
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    for (const method of ['GET', 'HEAD']) {
+      for (const routeType of ['static', 'short-comments', 'other']) {
+        const request = new Request(
+          `https://example.invalid/${routeType === 'static' ? 'robots.txt' : 'C/L'}?token=secret`,
+          { method }
+        );
+        let restore = () => {};
+        if (routeType === 'static') {
+          const file = spyOn(Bun, 'file').mockImplementation(() => {
+            throw new TypeError('/private/secret.sqlite?token=secret');
+          });
+          restore = () => file.mockRestore();
+        } else if (routeType === 'short-comments') {
+          const encode = spyOn(globalThis, 'encodeURI').mockImplementation(
+            () => {
+              throw new TypeError('https://stored.invalid/?token=secret');
+            }
+          );
+          restore = () => encode.mockRestore();
+        } else {
+          Object.defineProperty(request, 'url', {
+            get() {
+              throw new TypeError(
+                'https://user:secret@example.invalid/private?token=secret'
+              );
+            },
+          });
+        }
+        try {
+          log.mockClear();
+          const response = await handleRequest(request);
+          expect(response.status).toBe(500);
+          expect(await response.text()).toBe(
+            method === 'HEAD' ? '' : 'Internal Server Error'
+          );
+          expect(log.mock.calls).toEqual([
+            [
+              'HTTP request failed',
+              {
+                timestamp: expect.any(String),
+                category: 'type_error',
+                routeType,
+              },
+            ],
+          ]);
+        } finally {
+          restore();
+        }
+      }
+    }
   } finally {
     log.mockRestore();
   }
