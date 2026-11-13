@@ -1,6 +1,7 @@
 import './setup';
 import { afterAll, beforeAll, beforeEach, expect, test, spyOn } from 'bun:test';
 import type { Server } from 'bun';
+import { createConnection } from 'node:net';
 import { db, resetDoubles, outbound } from './setup';
 import cache from '../src/cache';
 import { encode } from '../src/shortener';
@@ -37,6 +38,52 @@ test('health and status methods, case and trailing slashes', async () => {
     expect(await response.text()).toBe('ok');
   }
   expect((await request('/yo', { method: 'POST' })).status).toBe(404);
+});
+
+// Fetch/Request normalize or reject these inputs before Bun's server sees them.
+function rawRequest(method: string, target: string, host: string) {
+  return new Promise<string>((resolve, reject) => {
+    let response = '';
+    const socket = createConnection(
+      { host: '127.0.0.1', port: server.port! },
+      () => {
+        socket.write(
+          `${method} ${target} HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\n\r\n`
+        );
+      }
+    );
+    socket.setEncoding('utf8');
+    socket.setTimeout(2000, () => socket.destroy(new Error('HTTP timeout')));
+    socket.on('data', (data) => {
+      response += data;
+    });
+    socket.on('error', reject);
+    socket.on('close', () => resolve(response));
+  });
+}
+
+test('raw CONNECT and malformed Host requests are client errors without logging or persistence', async () => {
+  const log = spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    for (const method of ['GET', 'HEAD']) {
+      const response = await rawRequest(method, '/status', '[');
+      expect(response).toStartWith('HTTP/1.1 400 ');
+      expect(response.split('\r\n\r\n')[1]).toBe(
+        method === 'HEAD' ? '' : 'Malformed request'
+      );
+    }
+    const connect = await rawRequest(
+      'CONNECT',
+      '1.2.3.4:443',
+      'example.invalid'
+    );
+    expect(connect).toStartWith('HTTP/1.1 404 ');
+    expect(log).not.toHaveBeenCalled();
+    for (const table of Object.values(db))
+      expect(table.findUnique).not.toHaveBeenCalled();
+  } finally {
+    log.mockRestore();
+  }
 });
 
 test('static assets preserve content, content type and HEAD semantics', async () => {

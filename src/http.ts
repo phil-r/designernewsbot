@@ -83,7 +83,17 @@ async function route(
   request: Request,
   diagnostic: { routeType: RouteType }
 ): Promise<Response> {
-  const path = new URL(request.url).pathname;
+  // CONNECT uses an authority target, not an application URL. Keep /status's
+  // existing support for arbitrary methods when filtering other requests below.
+  if (request.method === 'CONNECT') return text('Not Found', 404);
+  const url = request.url;
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch (error) {
+    if (error instanceof TypeError) return text('Malformed request', 400);
+    throw error;
+  }
   if (/^\/status\/?$/i.test(path)) return text('ok');
   if (!['GET', 'HEAD'].includes(request.method)) return text('Not Found', 404);
   const asset = assets.get(path);
