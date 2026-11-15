@@ -17,7 +17,7 @@ export function startServer() {
   getDatabase(); // Fail closed before opening the listener.
   let server;
   try {
-    server = Bun.serve({ port, fetch: handleRequest });
+    server = Bun.serve({ hostname: '127.0.0.1', port, fetch: handleRequest });
   } catch (error) {
     closeDatabase();
     throw error;

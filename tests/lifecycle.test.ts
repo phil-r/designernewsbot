@@ -124,6 +124,50 @@ test('explicit initializer CLI refuses an existing fixture without leaking its p
   }
 });
 
+test('HTTP server actually listens on IPv4 loopback at the configured port', async () => {
+  const f = fixture();
+  const probe = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch: () => new Response('probe'),
+  });
+  const port = probe.port!;
+  await probe.stop(true);
+  try {
+    const script = `
+      import assert from 'node:assert/strict';
+      import { startServer } from ${JSON.stringify(source('index'))};
+      import { closeDatabase } from ${JSON.stringify(source('persistence'))};
+      const server = startServer();
+      try {
+        assert.equal(server.hostname, '127.0.0.1');
+        assert.equal(server.port, ${port});
+      } finally {
+        await server.stop();
+        closeDatabase();
+      }
+    `;
+    const child = Bun.spawnSync(
+      [
+        process.execPath,
+        '--no-env-file',
+        '--preload',
+        resolve(import.meta.dir, 'fixtures/cli-offline.ts'),
+        '-e',
+        script,
+      ],
+      {
+        cwd: f.directory,
+        env: { DATABASE_URL: 'file:' + f.filename, PORT: String(port) },
+      }
+    );
+    expect(child.stderr.toString()).toBe('');
+    expect(child.exitCode).toBe(0);
+  } finally {
+    f.cleanup();
+  }
+});
+
 test('HTTP CLI serves a synthetic DB and drains on SIGTERM without schema changes', async () => {
   const f = fixture();
   const probe = Bun.serve({
