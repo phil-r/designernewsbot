@@ -24,3 +24,5 @@ dist
 .env.*
 !.env.example
 export/
+
+/.impeccable/

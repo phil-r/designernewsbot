@@ -7,22 +7,33 @@
     <title>dsgnr.news — Designer News</title>
     <style>
       :root {
-        color-scheme: dark;
-        --ground: #0c060e;
-        --frame: #18131d;
-        --text: #f4eff8;
-        --muted: #b7aabd;
-        --signal: #7ebaff;
-        --rule: #3d3446;
+        color-scheme: light;
+        --ground: #f7f3ea;
+        --frame: #e8e1d3;
+        --text: #222320;
+        --muted: #5d594f;
+        --signal: #196bb4;
+        --rule: #c9c0b2;
         --gutter: clamp(1rem, 3.5vw, 3.5rem);
         --gap: clamp(1rem, 2.4vw, 2.25rem);
         font-family: system-ui, sans-serif;
         background: var(--ground);
         color: var(--text);
       }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --ground: #191b1d;
+          --frame: #272b30;
+          --text: #f3f5f7;
+          --muted: #b2bfcd;
+          --signal: #498ed0;
+          --rule: #49515c;
+        }
+      }
       *, ::before, ::after { box-sizing: border-box; }
       [hidden] { display: none !important; }
-      body { margin: 0; }
+      body { margin: 0; overflow-wrap: anywhere; }
       ::selection { background: var(--signal); color: var(--ground); }
       a { color: inherit; text-underline-offset: 0.22em; }
       :focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
@@ -120,7 +131,6 @@
         font-size: 1rem;
         font-weight: 650;
         line-height: 1.25;
-        overflow-wrap: anywhere;
       }
       .post-link:hover h3, .post-link:focus-visible h3 { text-decoration: underline; }
       .source { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.8125rem; }
@@ -140,7 +150,7 @@
         .wall:has(> :nth-child(3)) > :first-child { grid-row: span 2; }
         .wall:has(> :nth-child(3)) > :first-child .post-link {
           display: grid;
-          grid-template: minmax(0, 1fr) auto / minmax(0, 1fr);
+          grid-template: minmax(12rem, 1fr) auto / minmax(0, 1fr);
           height: 100%;
         }
         .wall:has(> :nth-child(3)) > :first-child .frame { aspect-ratio: auto; }
@@ -250,6 +260,7 @@
           const caption = document.createElement('div');
           caption.className = 'caption';
           const title = document.createElement('h3');
+          title.dir = 'auto';
           title.textContent = item.title.trim() || 'Untitled';
           const source = document.createElement('p');
           source.className = 'source';
@@ -288,7 +299,8 @@
             if (!response.ok) throw new Error('Gallery request failed');
             const page = await response.json();
             if (!Array.isArray(page?.items) || (page.nextCursor !== null &&
-                (typeof page.nextCursor !== 'string' || !page.nextCursor || seenCursors.has(page.nextCursor)))) {
+                (typeof page.nextCursor !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(page.nextCursor) ||
+                 !page.items.length || seenCursors.has(page.nextCursor)))) {
               throw new Error('Invalid gallery page');
             }
             const batch = document.createDocumentFragment();
@@ -316,6 +328,8 @@
             loadMore.textContent = 'Load more';
             if (!ended && autoRemaining) observer?.observe(sentinel);
           } catch {
+            // Ignore late observer notifications until the reader retries.
+            autoRemaining = 0;
             status.textContent = wall.childElementCount
               ? 'Couldn’t load more posts. Try again.' : 'Couldn’t load the gallery. Try again or follow the posts on Telegram.';
             loadMore.textContent = 'Try again';
