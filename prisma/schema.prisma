@@ -34,6 +34,8 @@ model BehanceProject {
   telegramMessageId Int?     @unique // telegram_message_id
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  imageUrl          String?
+  // Gallery partial index is defined in the SQLite migration.
 }
 
 model DribbbleShot {
@@ -46,4 +48,6 @@ model DribbbleShot {
   telegramMessageId Int?     @unique // telegram_message_id
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  imageUrl          String?
+  // Gallery partial index is defined in the SQLite migration.
 }

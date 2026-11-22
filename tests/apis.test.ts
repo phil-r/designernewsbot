@@ -116,6 +116,40 @@ test('Dribbble preserves endpoint and deadline', async () => {
   expect(deadlines).toEqual([15000]);
 });
 
+test('Dribbble accepts 1 MiB but cancels a streamed byte over the limit', async () => {
+  const shot = {
+    id: 1,
+    title: '雪',
+    likes: 0,
+    url: '',
+    author: { name: '', url: '' },
+  };
+  const feed = { top: [shot] };
+  const json = new TextEncoder().encode(JSON.stringify(feed));
+  const split = json.findIndex((byte) => byte > 127) + 1;
+  const padding = new Uint8Array(1024 * 1024 - json.byteLength).fill(32);
+  for (const oversized of [false, true]) {
+    let cancelled = false;
+    respond = async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(padding);
+            controller.enqueue(json.subarray(0, split)); // Split the UTF-8 character.
+            controller.enqueue(json.subarray(split));
+            if (oversized) controller.enqueue(Uint8Array.of(32));
+            else controller.close();
+          },
+          cancel() {
+            cancelled = true;
+          },
+        })
+      );
+    expect(await dribbbleTop()).toEqual(oversized ? null : feed);
+    expect(cancelled).toBe(oversized);
+  }
+});
+
 test('Telegram preserves every JSON body, headers, defaults, overrides and media deadlines', async () => {
   const markup = {
     inline_keyboard: [[{ text: 'open', url: 'https://example.invalid' }]],

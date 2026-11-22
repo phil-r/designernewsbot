@@ -1,6 +1,6 @@
 import { settlePosts } from '../settle-posts';
 import { projects, BehanceProject } from '../apis/behance';
-import { sendPhoto } from '../apis/telegram';
+import { sendMessage, sendPhoto } from '../apis/telegram';
 import cache from '../cache';
 import { development, TELEGRAM_CHANNEL } from '../helpers';
 import db from '../persistence';
@@ -52,12 +52,11 @@ export async function addBehanceProject(
 
   console.log('sending', project.id);
 
-  const result = await sendPhoto(
-    TELEGRAM_CHANNEL,
-    project.covers.original,
-    message,
-    { inline_keyboard: [buttons] }
-  );
+  const imageUrl = project.covers?.original;
+  const markup = { inline_keyboard: [buttons] };
+  const result = imageUrl
+    ? await sendPhoto(TELEGRAM_CHANNEL, imageUrl, message, markup)
+    : await sendMessage(TELEGRAM_CHANNEL, message, markup);
 
   console.log('Telegram response:', result);
 
@@ -75,6 +74,7 @@ export async function addBehanceProject(
         shortUrl,
         message,
         telegramMessageId,
+        imageUrl,
       },
     });
     cache.set(cacheKey, project.url);

@@ -2,6 +2,8 @@ import { getBehanceProjectUrl } from './services/behance';
 import { getDNStoryCommentsUrl, getDNStoryUrl } from './services/dn';
 import { getDribbleShotUrl } from './services/dribbble';
 import { decode } from './shortener';
+import { getDatabase } from './persistence';
+import { decodeGalleryCursor, readGallery } from './gallery';
 
 const unavailable = '<h1>Service Unavailable</h1><p>Try again later</p>';
 const assets = new Map([
@@ -71,9 +73,25 @@ async function staticResponse(request: Request, name: string) {
   return new Response(bytes, { headers });
 }
 
+function galleryResponse(url: URL): Response {
+  const badCursor = () =>
+    Response.json({ error: 'Invalid gallery query' }, { status: 400 });
+  if (url.search.length > 512) return badCursor();
+  const params = url.searchParams;
+  if ([...params.keys()].some((key) => key !== 'cursor')) return badCursor();
+  const [value, extra] = params.getAll('cursor');
+  if (extra !== undefined) return badCursor();
+  const cursor = value === undefined ? null : decodeGalleryCursor(value);
+  if (value !== undefined && !cursor) return badCursor();
+  const headers = { 'Cache-Control': 'no-store' };
+  const page = readGallery(getDatabase(), cursor);
+  return Response.json(page, { headers });
+}
+
 type RouteType =
   | 'other'
   | 'static'
+  | 'gallery'
   | 'short-story'
   | 'short-comments'
   | 'short-behance'
@@ -86,16 +104,21 @@ async function route(
   // CONNECT uses an authority target, not an application URL. Keep /status's
   // existing support for arbitrary methods when filtering other requests below.
   if (request.method === 'CONNECT') return text('Not Found', 404);
-  const url = request.url;
-  let path: string;
+  const requestUrl = request.url;
+  let url: URL;
   try {
-    path = new URL(url).pathname;
+    url = new URL(requestUrl);
   } catch (error) {
     if (error instanceof TypeError) return text('Malformed request', 400);
     throw error;
   }
+  const path = url.pathname;
   if (/^\/status\/?$/i.test(path)) return text('ok');
   if (!['GET', 'HEAD'].includes(request.method)) return text('Not Found', 404);
+  if (path === '/api/gallery') {
+    diagnostic.routeType = 'gallery';
+    return galleryResponse(url);
+  }
   const asset = assets.get(path);
   if (asset) {
     diagnostic.routeType = 'static';
@@ -164,7 +187,10 @@ export async function handleRequest(request: Request): Promise<Response> {
       category,
       routeType: diagnostic.routeType,
     });
-    response = text('Internal Server Error', 500);
+    response =
+      diagnostic.routeType === 'gallery'
+        ? Response.json({ error: 'Gallery unavailable' }, { status: 500 })
+        : text('Internal Server Error', 500);
   }
   return request.method === 'HEAD'
     ? new Response(null, { status: response.status, headers: response.headers })

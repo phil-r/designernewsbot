@@ -1,40 +1,335 @@
 <!DOCTYPE html>
-<html>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+<html lang="en">
   <head>
-    <title>Read Designer News</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Design work from Behance and Dribbble." />
+    <title>dsgnr.news — Designer News</title>
     <style>
-      body {
-        height: 100vh;
+      :root {
+        color-scheme: dark;
+        --ground: #0c060e;
+        --frame: #18131d;
+        --text: #f4eff8;
+        --muted: #b7aabd;
+        --signal: #7ebaff;
+        --rule: #3d3446;
+        --gutter: clamp(1rem, 3.5vw, 3.5rem);
+        --gap: clamp(1rem, 2.4vw, 2.25rem);
+        font-family: system-ui, sans-serif;
+        background: var(--ground);
+        color: var(--text);
+      }
+      *, ::before, ::after { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      body { margin: 0; }
+      ::selection { background: var(--signal); color: var(--ground); }
+      a { color: inherit; text-underline-offset: 0.22em; }
+      :focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+      .shell { width: min(100%, 100rem); padding-inline: var(--gutter); margin-inline: auto; }
+      .masthead {
         display: flex;
-        flex-flow: column;
-        font-family: sans-serif;
-        background: #0c060e;
-        color: #0774ec;
-        justify-content: center;
+        align-items: flex-end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem 2rem;
+        padding-block: clamp(1.25rem, 3vw, 2.75rem) 1rem;
+      }
+      .masthead h1 {
+        margin: 0;
+        color: var(--signal);
+        font-size: clamp(2.625rem, 6.5vw, 4.75rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 0.96;
+      }
+      .masthead p {
+        margin: 0.625rem 0 0;
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+      .follow {
+        min-height: 2.75rem;
+        display: inline-flex;
         align-items: center;
+        color: var(--signal);
+        font-size: 0.875rem;
+        font-weight: 650;
+      }
+      .masthead-links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0 1.25rem;
+      }
+      .credit {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+        color: var(--muted);
+        font-size: 0.8125rem;
+      }
+      .credit a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+      .follow:hover, .credit a:hover { color: var(--text); }
+      main { border-block-start: 1px solid var(--rule); padding-block-start: var(--gap); }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
+      .wall {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: calc(var(--gap) * 1.45) var(--gap);
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .post-link { display: block; text-decoration: none; }
+      .frame {
+        position: relative;
+        display: grid;
+        place-items: center;
+        aspect-ratio: 4 / 3;
+        background: var(--frame);
+      }
+      .frame img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .media-note {
+        position: absolute;
+        inset-inline: 0.5rem;
+        color: var(--muted);
         text-align: center;
+        font-size: 0.8125rem;
       }
-      header {
-        margin-bottom: 8em;
+      .caption { align-self: start; padding-top: 0.625rem; }
+      .caption h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
       }
-      a {
-        color: #0774ec;
+      .post-link:hover h3, .post-link:focus-visible h3 { text-decoration: underline; }
+      .source { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.8125rem; }
+      .wall > :first-child { grid-column: 1 / -1; }
+      .wall > :first-child .frame { aspect-ratio: 16 / 10; }
+      .wall > :first-child h3 {
+        font-size: clamp(1.375rem, 2.7vw, 2.5rem);
+        letter-spacing: -0.03em;
       }
+      @media (min-width: 54rem) {
+        .wall {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          row-gap: var(--gap);
+        }
+        .wall > :first-child { grid-column: span 2; }
+        .frame { aspect-ratio: 16 / 10; }
+        .wall:has(> :nth-child(3)) > :first-child { grid-row: span 2; }
+        .wall:has(> :nth-child(3)) > :first-child .post-link {
+          display: grid;
+          grid-template: minmax(0, 1fr) auto / minmax(0, 1fr);
+          height: 100%;
+        }
+        .wall:has(> :nth-child(3)) > :first-child .frame { aspect-ratio: auto; }
+      }
+      .pagination { padding-block: clamp(2rem, 5vw, 4rem); text-align: center; }
+      .wall:empty + .pagination {
+        min-height: min(40vh, 18rem);
+        display: grid;
+        place-content: center;
+      }
+      .status { margin: 0 auto; max-width: 50ch; color: var(--muted); line-height: 1.5; }
+      .status:not(:empty) + .load-more { margin-top: 0.875rem; }
+      .load-more {
+        min-height: 2.75rem;
+        padding: 0.5rem 1.25rem;
+        border: 1px solid var(--signal);
+        background: transparent;
+        color: var(--signal);
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      .load-more:hover:not([aria-disabled]) { background: var(--signal); color: var(--ground); }
+      .load-more[aria-disabled] { opacity: 0.65; cursor: wait; }
     </style>
   </head>
-
   <body>
-    <header class="message">
-      <h1>Read Designer News</h1>
-      <a href="https://t.me/designer_news">https://t.me/designer_news</a>
-    </header>
-    <footer>
-      Created by
-      <a class="link" target="_blank" href="https://github.com/phil-r"
-        >Phil Rukin</a
-      >
-    </footer>
+    <div class="shell">
+      <header class="masthead">
+        <div>
+          <h1>dsgnr.news</h1>
+          <p>Design work from Behance and Dribbble, newest first.</p>
+        </div>
+        <div class="masthead-links">
+          <a class="follow" href="https://t.me/designer_news">Follow on Telegram</a>
+          <span class="credit">By <a href="https://rukin.me">Phil Rukin</a></span>
+        </div>
+      </header>
+      <main>
+        <section aria-labelledby="gallery-heading">
+          <h2 class="visually-hidden" id="gallery-heading">Latest Telegram posts</h2>
+          <ol class="wall" id="wall" role="list"></ol>
+          <div class="pagination" id="pagination">
+            <p class="status" id="status" role="status" tabindex="-1"></p>
+            <button class="load-more" id="load-more" type="button" hidden>Load more</button>
+            <noscript>Turn on JavaScript to view the gallery, or follow the posts on Telegram.</noscript>
+          </div>
+          <div id="sentinel" aria-hidden="true"></div>
+        </section>
+      </main>
+    </div>
+    <script>
+      (() => {
+        const wall = document.getElementById('wall');
+        const sentinel = document.getElementById('sentinel');
+        const pagination = document.getElementById('pagination');
+        const status = document.getElementById('status');
+        const loadMore = document.getElementById('load-more');
+        const sources = new Map([['behance', 'Behance'], ['dribbble', 'Dribbble']]);
+        const seenCursors = new Set();
+        const autoLimit = 2; // Limit automatic loading before handing control to the reader.
+        let autoRemaining = autoLimit;
+        let nextCursor = null;
+        let loading = false;
+        let ended = false;
+
+        function webAddress(value, httpsOnly = false) {
+          if (typeof value !== 'string' || !/^https?:\/\/[^/]/i.test(value)
+              || /[\s\u0000-\u001f\u007f\\]/.test(value)) return null;
+          try {
+            const url = new URL(value);
+            if ((!httpsOnly || url.protocol === 'https:') && !url.username && !url.password) return url.href;
+          } catch { /* Unusable address. */ }
+          return null;
+        }
+
+        function createPost(item, eager) {
+          const href = webAddress(item?.url);
+          if (!href || typeof item.title !== 'string' || !sources.has(item.source)) return null;
+          const row = document.createElement('li');
+          const link = document.createElement('a');
+          link.className = 'post-link';
+          link.href = href;
+
+          const frame = document.createElement('div');
+          frame.className = 'frame';
+          const note = document.createElement('span');
+          note.className = 'media-note';
+          note.textContent = 'Preview unavailable';
+          const imageUrl = webAddress(item.imageUrl, true);
+          if (imageUrl) {
+            const image = document.createElement('img');
+            // The link already has a visible title and the API has no image descriptions.
+            image.alt = '';
+            image.loading = eager ? 'eager' : 'lazy';
+            image.decoding = 'async';
+            note.hidden = true;
+            image.addEventListener('error', () => {
+              image.hidden = true;
+              note.hidden = false;
+            }, { once: true });
+            image.src = imageUrl;
+            frame.append(image);
+          }
+          frame.append(note);
+
+          const caption = document.createElement('div');
+          caption.className = 'caption';
+          const title = document.createElement('h3');
+          title.textContent = item.title.trim() || 'Untitled';
+          const source = document.createElement('p');
+          source.className = 'source';
+          source.textContent = sources.get(item.source);
+          caption.append(title, source);
+          link.append(frame, caption);
+          row.append(link);
+          return row;
+        }
+
+        const observer = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+          if (autoRemaining && !pagination.contains(document.activeElement)
+              && entries.some(entry => entry.isIntersecting)) {
+            void loadPage('auto');
+          }
+        }, { rootMargin: '180px 0px' }) : null;
+
+        async function loadPage(mode) {
+          if (loading || ended) return;
+          loading = true;
+          observer?.unobserve(sentinel);
+          if (mode === 'auto') autoRemaining -= 1;
+          if (mode === 'manual') autoRemaining = autoLimit;
+          loadMore.setAttribute('aria-disabled', 'true');
+          status.textContent = wall.childElementCount ? 'Loading more posts…' : 'Loading the gallery…';
+          const url = new URL('/api/gallery', location.origin);
+          if (nextCursor !== null) url.searchParams.set('cursor', nextCursor);
+          const controller = new AbortController();
+          const deadline = setTimeout(() => controller.abort(), 8000);
+
+          try {
+            const response = await fetch(url, {
+              headers: { Accept: 'application/json' },
+              signal: controller.signal,
+            });
+            if (!response.ok) throw new Error('Gallery request failed');
+            const page = await response.json();
+            if (!Array.isArray(page?.items) || (page.nextCursor !== null &&
+                (typeof page.nextCursor !== 'string' || !page.nextCursor || seenCursors.has(page.nextCursor)))) {
+              throw new Error('Invalid gallery page');
+            }
+            const batch = document.createDocumentFragment();
+            let firstNewLink;
+            for (const item of page.items) {
+              const post = createPost(item, !wall.childElementCount && !firstNewLink);
+              if (!post) continue;
+              firstNewLink ||= post.firstElementChild;
+              batch.append(post);
+            }
+            wall.append(batch);
+            nextCursor = page.nextCursor;
+            ended = nextCursor === null;
+            if (!ended) seenCursors.add(nextCursor);
+
+            status.textContent = ended
+              ? (wall.childElementCount ? 'You’ve reached the oldest post in this gallery.' : 'No project previews to show yet.')
+              : '';
+            // A reader can tab to the button after an automatic load has started.
+            if ((mode === 'manual' || ended) && document.activeElement === loadMore) {
+              if (firstNewLink) firstNewLink.focus();
+              else if (ended) status.focus();
+            }
+            loadMore.hidden = ended;
+            loadMore.textContent = 'Load more';
+            if (!ended && autoRemaining) observer?.observe(sentinel);
+          } catch {
+            status.textContent = wall.childElementCount
+              ? 'Couldn’t load more posts. Try again.' : 'Couldn’t load the gallery. Try again or follow the posts on Telegram.';
+            loadMore.textContent = 'Try again';
+            loadMore.hidden = false;
+          } finally {
+            clearTimeout(deadline);
+            loading = false;
+            loadMore.removeAttribute('aria-disabled');
+          }
+        }
+
+        loadMore.addEventListener('click', () => void loadPage('manual'));
+        void loadPage('initial');
+      })();
+    </script>
   </body>
 </html>

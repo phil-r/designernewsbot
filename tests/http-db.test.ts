@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { resolve } from 'node:path';
 import { fixture, row } from './fixtures/database';
 
-test('native HTTP resolves cold short links from original-schema SQLite fixtures', () => {
+test('native HTTP resolves cold short links for legacy rows in migrated SQLite fixtures', () => {
   const f = fixture();
   try {
     for (const repo of Object.values(f.repo)) repo.create({ data: row() });

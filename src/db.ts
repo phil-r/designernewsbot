@@ -2,6 +2,7 @@ import { Database } from 'bun:sqlite';
 import { resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { statSync } from 'node:fs';
+import { galleryImage, isGalleryLink } from './gallery-image';
 
 export const schemaDirectory = fileURLToPath(
   new URL('../prisma/', import.meta.url)
@@ -46,7 +47,9 @@ const baseColumns = [
   'createdAt',
   'updatedAt',
 ];
-export function columnsFor(table: Table): string[] {
+type Schema = 'legacy' | 'gallery';
+
+export function columnsFor(table: Table, schema: Schema = 'gallery'): string[] {
   return table === 'DesignerNewsStory'
     ? [
         'id',
@@ -61,11 +64,18 @@ export function columnsFor(table: Table): string[] {
         'createdAt',
         'updatedAt',
       ]
-    : [...baseColumns];
+    : schema === 'gallery'
+      ? [...baseColumns, 'imageUrl']
+      : [...baseColumns];
 }
 
+export const galleryPredicate =
+  '"imageUrl" IS NOT NULL AND "telegramMessageId" IS NOT NULL';
+const canonical = (sql: string) =>
+  sql.replace(/[\s"`\[\];]/g, '').toUpperCase();
+
 // Fixed identifiers only; user-controlled values are always bound parameters.
-export function validateSchema(db: Database): void {
+export function validateSchema(db: Database, schema: Schema = 'gallery'): void {
   for (const table of tables) {
     const columns = db.query(`PRAGMA table_info("${table}")`).all() as Array<{
       name: string;
@@ -74,7 +84,7 @@ export function validateSchema(db: Database): void {
       pk: number;
       dflt_value: string | null;
     }>;
-    const expected = columnsFor(table);
+    const expected = columnsFor(table, schema);
     if (columns.length !== expected.length)
       throw new Error(`Incompatible schema: ${table} columns`);
     for (const [i, name] of expected.entries()) {
@@ -84,7 +94,7 @@ export function validateSchema(db: Database): void {
         : name.endsWith('At')
           ? 'DATETIME'
           : 'TEXT';
-      const nullable = ['text', 'telegramMessageId'].includes(name);
+      const nullable = ['text', 'telegramMessageId', 'imageUrl'].includes(name);
       if (
         c.name !== name ||
         c.type.toUpperCase() !== type ||
@@ -97,9 +107,7 @@ export function validateSchema(db: Database): void {
     const definition = db
       .query('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?')
       .get('table', table) as { sql: string } | null;
-    // Exact original table definition, ignoring presentation, also rejects hidden CHECK/FK constraints.
-    const canonical = (sql: string) =>
-      sql.replace(/[\s"`\[\];]/g, '').toUpperCase();
+    // Exact table definition, ignoring presentation, also rejects hidden CHECK/FK constraints.
     const expectedSQL = `CREATE TABLE ${table} (${columns.map((c) => `${c.name} ${c.type}${c.notnull ? ' NOT NULL' : ''}${c.pk ? ' PRIMARY KEY AUTOINCREMENT' : ''}${c.dflt_value ? ' DEFAULT ' + c.dflt_value : ''}`).join(',')})`;
     if (!definition || canonical(definition.sql) !== canonical(expectedSQL))
       throw new Error(`Incompatible schema: ${table} definition`);
@@ -135,6 +143,15 @@ export function validateSchema(db: Database): void {
       )
         throw new Error(`Incompatible schema: ${name}`);
     }
+    if (schema === 'gallery' && table !== 'DesignerNewsStory') {
+      const name = `${table}_gallery_idx`;
+      const index = db
+        .query('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?')
+        .get('index', name) as { sql: string } | null;
+      const expected = `CREATE INDEX ${name} ON ${table} (createdAt DESC, id DESC) WHERE ${galleryPredicate}`;
+      if (!index || canonical(index.sql) !== canonical(expected))
+        throw new Error(`Incompatible schema: ${name}`);
+    }
   }
 }
 
@@ -146,6 +163,7 @@ export type RecordInput = {
   shortUrl: string;
   score: number;
   telegramMessageId?: number | null;
+  imageUrl?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -186,6 +204,14 @@ function valuesFor(
     if (name === 'createdAt' || name === 'updatedAt')
       return timestamp(imported ? data[name] : (data[name] ?? now), name);
     if (name === 'telegramMessageId') return data.telegramMessageId ?? null;
+    if (name === 'imageUrl') {
+      // Imported rows have no verified preview from a new delivery.
+      return !imported &&
+        (data.telegramMessageId ?? 0) > 0 &&
+        isGalleryLink(data.url)
+        ? galleryImage(data.imageUrl)
+        : null;
+    }
     if (name === 'text') {
       if (story.text != null && typeof story.text !== 'string')
         throw new TypeError('text must be a string or null');
@@ -253,12 +279,24 @@ function repository<T extends RecordInput>(
               (update as RecordInput & { text?: string | null }).text ===
                 undefined
             )
-        );
+        )
+        .map(({ column, value }) => {
+          if (column !== 'imageUrl')
+            return { assignment: `"${column}" = ?`, bindings: [value] };
+          // RHS columns refer to the stored row, not the INSERT or UPDATE
+          // values. Keep its preview only for the same URL and delivery.
+          const delivery = update.telegramMessageId;
+          return {
+            assignment: `"imageUrl" = CASE WHEN "url" = ? AND "telegramMessageId" > 0${delivery === undefined ? '' : ' AND "telegramMessageId" = ?'} THEN "imageUrl" END`,
+            bindings:
+              delivery === undefined ? [update.url] : [update.url, delivery],
+          };
+        });
       connection()
         .query(
-          `${insert} ON CONFLICT(id) DO UPDATE SET ${updates.map(({ column }) => `"${column}" = ?`).join(',')}`
+          `${insert} ON CONFLICT(id) DO UPDATE SET ${updates.map(({ assignment }) => assignment).join(',')}`
         )
-        .run(...insertValues, ...updates.map(({ value }) => value));
+        .run(...insertValues, ...updates.flatMap(({ bindings }) => bindings));
     },
   };
 }

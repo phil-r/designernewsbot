@@ -76,6 +76,7 @@ for (const c of cases)
         id: 42,
         message: c.text,
         telegramMessageId: 123,
+        imageUrl: c.name === 'Behance' ? project.covers.original : shot.img,
       });
       await add(c.item);
       expect(outbound.posts).toHaveLength(1);
@@ -131,6 +132,35 @@ test('Dribbble video uses sendVideo with the unchanged caption and timeout', asy
   );
   expect(outbound.posts[0].data.caption).toBe(cases[1].text);
   expect(outbound.posts[0].options.signal).toBeInstanceOf(AbortSignal);
+  expect(db.dribbbleShot.create.mock.calls[0][0].data.imageUrl).toBe(shot.img);
+});
+
+test('a Dribbble video without a still preview still posts and persists', async () => {
+  await addDribbbleShot({
+    ...shot,
+    img: undefined,
+    video: 'https://example.invalid/video.mp4',
+  });
+  expect(outbound.posts[0].url).toEndWith('/sendVideo');
+  expect(db.dribbbleShot.create.mock.calls[0][0].data).toMatchObject({
+    imageUrl: undefined,
+    telegramMessageId: 123,
+  });
+});
+
+test('missing static media posts the existing caption as a link message', async () => {
+  await addBehanceProject({ ...project, covers: undefined });
+  await addDribbbleShot({ ...shot, img: undefined });
+  for (const [i, { url, data }] of outbound.posts.entries()) {
+    expect(url).toEndWith('/sendMessage');
+    expect(data.text).toBe(cases[i].text);
+    expect(data.reply_markup).toEqual({ inline_keyboard: cases[i].markup });
+    expect(cases[i].table.create.mock.calls[0][0].data).toMatchObject({
+      imageUrl: undefined,
+      telegramMessageId: 123,
+    });
+  }
+  expect(outbound.posts).toHaveLength(2);
 });
 
 test('upstream timeout/failure returns no work without writing or sending', async () => {

@@ -1,6 +1,6 @@
 import { settlePosts } from '../settle-posts';
 import { DribbbleShot, dribbbleTop } from '../apis/dribbble';
-import { sendPhoto, sendVideo } from '../apis/telegram';
+import { sendMessage, sendPhoto, sendVideo } from '../apis/telegram';
 import cache from '../cache';
 import { development, TELEGRAM_CHANNEL } from '../helpers';
 import db from '../persistence';
@@ -40,13 +40,13 @@ export async function addDribbbleShot(shot: DribbbleShot, ignoreLimit = false) {
 
   console.log('sending', shot.id);
 
+  const imageUrl = shot.img;
+  const markup = { inline_keyboard: [buttons] };
   const result = shot.video
-    ? await sendVideo(TELEGRAM_CHANNEL, shot.video, message, {
-        inline_keyboard: [buttons],
-      })
-    : await sendPhoto(TELEGRAM_CHANNEL, shot.img, message, {
-        inline_keyboard: [buttons],
-      });
+    ? await sendVideo(TELEGRAM_CHANNEL, shot.video, message, markup)
+    : imageUrl
+      ? await sendPhoto(TELEGRAM_CHANNEL, imageUrl, message, markup)
+      : await sendMessage(TELEGRAM_CHANNEL, message, markup);
 
   console.log('Telegram response:', result);
 
@@ -64,6 +64,7 @@ export async function addDribbbleShot(shot: DribbbleShot, ignoreLimit = false) {
         shortUrl,
         message,
         telegramMessageId,
+        imageUrl,
       },
     });
     cache.set(cacheKey, shot.url);

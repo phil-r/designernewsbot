@@ -135,23 +135,46 @@ test('separate connections bound lock waiting and recover without changing journ
   }
 });
 
+const migration = (name: string) =>
+  readFileSync(
+    new URL(`../prisma/migrations/${name}/migration.sql`, import.meta.url),
+    'utf8'
+  );
+const originalMigration = '20220813164612_init';
+const galleryMigration = '20261122172100_gallery_images';
+
+test('gallery migration preserves old rows and requires the paging indexes', () => {
+  const db = new Database(':memory:');
+  try {
+    db.exec(migration(originalMigration));
+    db.exec(`INSERT INTO BehanceProject (id, title, message, url, shortUrl, score, telegramMessageId, createdAt, updatedAt)
+      VALUES (42, 'synthetic', 'legacy', 'https://offline.invalid/legacy', 'legacy', 3, 12, '2020-01-02 03:04:05', 1234567890)`);
+    const before = db.query('SELECT * FROM BehanceProject').get() as object;
+    expect(() => validateSchema(db)).toThrow();
+    db.transaction(() => db.exec(migration(galleryMigration)))();
+    expect(() => validateSchema(db)).not.toThrow();
+    expect(db.query('SELECT * FROM BehanceProject').get()).toEqual({
+      ...before,
+      imageUrl: null,
+    });
+    db.exec('DROP INDEX BehanceProject_gallery_idx');
+    expect(() => validateSchema(db)).toThrow('BehanceProject_gallery_idx');
+  } finally {
+    db.close();
+  }
+});
+
 test('unexpected CHECK constraint is incompatible even with matching columns', () => {
   const db = new Database(':memory:');
   try {
-    const sql = readFileSync(
-      new URL(
-        '../prisma/migrations/20220813164612_init/migration.sql',
-        import.meta.url
-      ),
-      'utf8'
-    );
     db.exec(
-      sql.replace(
+      migration(originalMigration).replace(
         '"score" INTEGER NOT NULL',
         '"score" INTEGER NOT NULL CHECK(score >= 0)'
       )
     );
-    expect(() => validateSchema(db)).toThrow();
+    db.exec(migration(galleryMigration));
+    expect(() => validateSchema(db)).toThrow('DesignerNewsStory definition');
   } finally {
     db.close();
   }

@@ -159,3 +159,86 @@ test('upsert distinguishes omitted nullable fields from explicit NULL like Prism
     f.cleanup();
   }
 });
+
+for (const [table, name] of [
+  ['BehanceProject', 'behanceProject'],
+  ['DribbbleShot', 'dribbbleShot'],
+] as const)
+  test(`${table} import never adds a preview and keeps one only for the same URL and delivery`, async () => {
+    const { importRecords } = await import('../src/import-records');
+    const f = fixture();
+    try {
+      const repo = f.repo[name];
+      const preview = 'https://offline.invalid/original.jpg';
+      const replacement = 'https://offline.invalid/imported.jpg';
+      for (const id of [101, 102, 103, 104, 105, 107]) {
+        repo.create({
+          data: { ...row(id), telegramMessageId: id, imageUrl: preview },
+        });
+      }
+      const record = (id: number) => ({
+        created: 1234567890123,
+        title: 'updated title',
+        telegram_message_id: id,
+        message: 'updated message',
+        url: row(id).url,
+        short_url: `https://offline.invalid/updated/${id}`,
+        score: 30,
+        imageUrl: replacement,
+      });
+      importRecords(
+        {
+          [table]: {
+            '101': record(101),
+            '102': { ...record(102), url: 'https://offline.invalid/different' },
+            '103': { ...record(103), telegram_message_id: 203 },
+            '104': { ...record(104), telegram_message_id: null },
+            '106': record(106),
+          },
+        },
+        f.repo
+      );
+      // Omitted delivery leaves the old one in place; use UPDATE values, not
+      // the would-be INSERT values, to decide whether the URL changed.
+      for (const id of [105, 107]) {
+        const data = {
+          ...row(id),
+          createdAt: new Date(10),
+          updatedAt: new Date(20),
+          telegramMessageId: undefined,
+          imageUrl: replacement,
+        };
+        repo.upsert({
+          where: { id },
+          create: { ...data, telegramMessageId: id + 100 },
+          update:
+            id === 105 ? data : { ...data, url: 'https://offline.invalid/new' },
+        });
+      }
+      expect(
+        f.db
+          .query(
+            `SELECT id, telegramMessageId, imageUrl FROM "${table}" ORDER BY id`
+          )
+          .all()
+      ).toEqual([
+        { id: 101, telegramMessageId: 101, imageUrl: preview },
+        { id: 102, telegramMessageId: 102, imageUrl: null },
+        { id: 103, telegramMessageId: 203, imageUrl: null },
+        { id: 104, telegramMessageId: null, imageUrl: null },
+        { id: 105, telegramMessageId: 105, imageUrl: preview },
+        { id: 106, telegramMessageId: 106, imageUrl: null },
+        { id: 107, telegramMessageId: 107, imageUrl: null },
+      ]);
+      expect(
+        f.db
+          .query(`SELECT title, shortUrl FROM "${table}" WHERE id = 101`)
+          .get()
+      ).toEqual({
+        title: 'updated title',
+        shortUrl: record(101).short_url,
+      });
+    } finally {
+      f.cleanup();
+    }
+  });

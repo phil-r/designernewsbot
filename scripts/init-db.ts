@@ -1,5 +1,11 @@
 import { Database } from 'bun:sqlite';
-import { openSync, closeSync, unlinkSync, readFileSync } from 'node:fs';
+import {
+  openSync,
+  closeSync,
+  unlinkSync,
+  readFileSync,
+  readdirSync,
+} from 'node:fs';
 import { validateSchema } from '../src/db';
 
 // Explicit bootstrap only. Exclusive creation refuses even an empty existing file.
@@ -13,15 +19,16 @@ export function initializeDatabase(filename: string): void {
       create: false,
       strict: true,
     });
-    const sql = readFileSync(
-      new URL(
-        '../prisma/migrations/20220813164612_init/migration.sql',
-        import.meta.url
-      ),
-      'utf8'
-    );
+    const migrations = new URL('../prisma/migrations/', import.meta.url);
+    const names = readdirSync(migrations, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
     db.transaction(() => {
-      db!.exec(sql);
+      for (const name of names)
+        db!.exec(
+          readFileSync(new URL(`${name}/migration.sql`, migrations), 'utf8')
+        );
       validateSchema(db!);
     })();
     db.close();

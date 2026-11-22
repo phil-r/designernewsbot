@@ -16,8 +16,8 @@ export type BehanceProject = {
     appreciations: number;
     comments: number;
   };
-  covers: {
-    original: string;
+  covers?: {
+    original?: string;
   };
 };
 
